@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23786a"/>
+      <stop offset="1" stop-color="#143f37"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <!-- D: the lecture page -->
+  <path d="M300 236 H500 A276 276 0 0 1 500 788 H300 Z" fill="none" stroke="#f4f1e8" stroke-width="66" stroke-linejoin="round"/>
+  <!-- written lines -->
+  <line x1="392" y1="392" x2="600" y2="392" stroke="#f4f1e8" stroke-width="40" stroke-linecap="round"/>
+  <line x1="392" y1="632" x2="560" y2="632" stroke="#f4f1e8" stroke-width="40" stroke-linecap="round"/>
+  <!-- heard: sound wave between the written lines -->
+  <g stroke="#8fe3c9" stroke-width="30" stroke-linecap="round">
+    <line x1="392" y1="490" x2="392" y2="534"/>
+    <line x1="446" y1="466" x2="446" y2="558"/>
+    <line x1="500" y1="440" x2="500" y2="584"/>
+    <line x1="554" y1="474" x2="554" y2="550"/>
+    <line x1="608" y1="456" x2="608" y2="568"/>
+    <line x1="662" y1="492" x2="662" y2="532"/>
+  </g>
+</svg>
