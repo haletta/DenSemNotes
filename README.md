@@ -141,6 +141,21 @@ Change any of them in **Preferences › Shortcuts**: click a shortcut and press 
 
 The class-notes AI reads the lecture, your notes and the text of every slide deck and PDF in the class, so you can also make class notes from slides and handouts alone (import them with no script). If the AI is unavailable, the app keeps going with basic summaries and a basic lesson.
 
+## Updates
+
+The app checks the repository's **main** branch when it opens and every few hours. When there's a new commit, an **Update** button appears in the title bar.
+
+To check yourself: **Help › Check for Updates…** in the menu bar, right-click the **Preferences** (gear) button › **Check for updates…**, or give it a shortcut in Preferences › Shortcuts. It tells you straight away when you're up to date, or opens **Update now** when there's something new.
+
+**Preferences › General › Updates** lists what changed (the commit messages) and has:
+
+- **Update now**: downloads that version from GitHub, keeps your current one, installs any new libraries, then asks you to **Restart now**. Your classes, notes and settings are never touched.
+- **Go back to the previous version**: if an update misbehaves.
+- **Check now**, and a switch to turn automatic checks off.
+- **Private repository?**: paste a GitHub token with read-only access to the repository's contents. A public repository needs no token.
+
+Updates come from the repository named in `update.json` (haletta/DenSemNotes). Updating is paused while you're recording.
+
 ## Troubleshooting
 
 - **Mic bars stay grey**: System Settings › Privacy & Security › Microphone › turn on DenSemNotes, then reopen the app.
