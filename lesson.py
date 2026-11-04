@@ -452,6 +452,9 @@ class LessonBuilder:
         hub = self.hub
         try:
             s = hub.class_copy(kid)
+            if opts.get("source") == "material":
+                from store import original_notes
+                s["lines"] = original_notes(s) or []
             has_notes = any(l.get("text", "").strip() for l in s.get("lines", []))
             ready_docs = [d for d in s.get("docs", []) if d.get("status") == "ready"]
             doc_pages = [(d["name"], hub.page_texts(kid, d["id"])) for d in ready_docs]
@@ -470,7 +473,8 @@ class LessonBuilder:
                 try:
                     big = lesson_budget(hub.cfg) >= 20000
                     prompt = build_prompt(s, opts, lesson_budget(hub.cfg), lambda sl: hub.slide_text(kid, sl),
-                                          doc_pages if (big or not (s["segs"] or has_notes)) else None,
+                                          doc_pages if (big or not (s["segs"] or has_notes) or opts.get("source") == "material")
+                                          else None,
                                           30000 if big else 2500)
                     md = clean_lesson(ask_lesson(hub.cfg, prompt, 4000), opts)
                     if md.count("\n") < 8:

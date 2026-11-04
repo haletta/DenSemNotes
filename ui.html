@@ -1400,6 +1400,8 @@ function classMenu(k, c, anchor, at){
   const moves = S.lib.courses.filter(x => x.id !== c.id).map(x => ({label: x.name, act: () => moveClass(k.id, x.id)}));
   openMenu(anchor, [
     {label: 'Open', act: () => openClass(k.id), disabled: k.id === S.kid},
+    {label: 'New lesson from transcript & slides', act: () => lessonFromMaterial(k.id)},
+    '-',
     {label: 'Rename', act: () => { const el = document.querySelector(`.card[data-id="${k.id}"] .nm`) || document.querySelector(`.sb-item[data-kid="${k.id}"] .nm`); el && renameInline(el, k.name, name => post('/class/rename', {id: k.id, name})); }},
     ...(moves.length ? ['-', {head: 'Move to course'}, ...moves] : []),
     '-',
@@ -2945,6 +2947,7 @@ function formatMenu(anchor){
   const cur = ui().blend || 'notes';
   openMenu(anchor, [
     {label: 'Format as lesson', kbd: scLabel('format'), act: () => startFormat(cur)},
+    {label: 'New lesson from transcript & slides', kbd: scLabel('lessonMaterial'), disabled: !(S.cls.segs || []).length && !readyDocs().length, act: () => lessonFromMaterial()},
     '-', {head: 'Mix of my writing and the lecture'},
     ...BLENDS.map(([k, l]) => ({label: l, check: k === cur, act: () => { savePrefs({blend: k}); startFormat(k); }})),
     '-',
@@ -2956,8 +2959,18 @@ function setBusy(title, text){
   $('busy').hidden = !title; ed.contentEditable = title ? 'false' : 'true';
   if (title){ $('busyTitle').textContent = title; $('busyText').textContent = text || ''; }
 }
+async function lessonFromMaterial(kid){
+  kid = kid || S.kid; const [k] = findClass(kid);
+  const same = kid === S.kid, cls = same ? S.cls : null;
+  if (same && !(S.cls.segs || []).length && !readyDocs().length && !L.some(l => l.text.trim())) return toast('This class has no transcript, slides or notes yet.');
+  if ((cls ? cls.formatted : k && k.formatted) && !await confirmBox('Make a new lesson?', 'A fresh lesson is written from this class\'s transcript, slides and documents, plus the notes you wrote yourself. The current lesson is kept: Restore brings it back.', 'Make new lesson')) return;
+  if (same){ dirty = true; await saveNow(); setBusy('Writing a new lesson', `From the transcript, slides and documents${S.cls.formatted ? ' and your original notes' : ''}. Your current note is kept.`); }
+  const r = await post('/format', {kid, source: 'material'});
+  if (!r.ok){ if (same) setBusy(null); toast(r.error, 5000); }
+  else if (!same) toast(`Writing a new lesson for ${k ? k.name : 'that class'}…`, 3000);
+}
 async function startFormat(blend){
-  if (!L.some(l => l.text.trim()) && !(S.cls.segs || []).length) return toast('Write some notes or record the lecture first.');
+  if (!L.some(l => l.text.trim()) && !(S.cls.segs || []).length && !readyDocs().length) return toast('Write some notes, record the lecture or add slides first.');
   dirty = true; await saveNow();
   setBusy('Formatting your note', 'Turning it into your MyNotes template: sections, callouts, key terms with a glossary, questions and a diagram. Your original is kept.');
   const r = await post('/format', {kid: S.kid, blend: blend || ui().blend || 'notes'});
@@ -3011,6 +3024,7 @@ $('moreBtn').onclick = () => {
   const blend = (BLENDS.find(b => b[0] === (ui().blend || 'notes')) || BLENDS[0])[1];
   openMenu($('moreBtn'), [
     {label: `Format as lesson (${blend})`, kbd: scLabel('format'), act: () => startFormat()},
+    {label: 'New lesson from transcript & slides', kbd: scLabel('lessonMaterial'), disabled: !(S.cls.segs || []).length && !readyDocs().length, act: () => lessonFromMaterial()},
     {label: 'Choose the mix…', act: () => formatMenu($('moreBtn'))},
     {label: 'Restore my original notes', disabled: !(S.cls.versions || []).length, act: restoreOriginal},
     {label: 'Save lesson as .md file', disabled: !S.cls.formatted, act: saveLessonMd},
@@ -3360,7 +3374,7 @@ es.addEventListener('formatted', e => {
   if (d.kid !== S.kid){ toast('Your lesson is ready in the other class.'); return; }
   S.cls.formatted = d.formatted; S.cls.versions = new Array(d.versions || 0).fill(0);
   edKid = S.kid; loadEditor(d.lines); setBusy(null); setView(!d.restored ? 'read' : 'edit'); $('edwrap').scrollTop = 0;
-  toast(d.restored ? 'Your original notes are back' : (d.note ? 'Formatted (basic version, see Details)' : 'Formatted as a MyNotes lesson'));
+  toast(d.restored ? 'Your original notes are back' : d.back ? 'The earlier version is back' : (d.note ? 'Formatted (basic version, see Details)' : 'Formatted as a MyNotes lesson'));
 });
 es.onerror = () => flash('Lost contact with DenSemNotes. Reconnecting…');
 
@@ -3431,6 +3445,7 @@ const SHORTCUTS = [
   ['zoomReset', 'View', 'Actual size (100%)', 'Mod+0', () => setZoom(1)],
   ['discreet', 'Lecture', 'Discreet recording on / off', '', () => toggleDiscreet()],
   ['format', 'Lesson', 'Format as lesson', 'Shift+Mod+F', () => startFormat()],
+  ['lessonMaterial', 'Lesson', 'New lesson from transcript & slides', '', () => lessonFromMaterial()],
   ['saveMd', 'Lesson', 'Save lesson as .md file', 'Mod+S', () => S.cls.formatted ? saveLessonMd() : toast('Format the note as a lesson first. Your notes save by themselves.')],
   ['spell', 'Lesson', 'Check spelling', 'Mod+;', () => openSpell()],
   ['bold', 'Writing', 'Bold', 'Mod+B', () => wrapInline('**'), true],

@@ -151,6 +151,17 @@ def tidy_lesson_lines(s):
         return True
     return False
 
+def original_notes(s):
+    """The notes I wrote myself in a class: the current note, or, if it has been turned into a lesson, the note
+    as it was before the first formatting."""
+    if s.get("formatted"):
+        for v in s.get("versions", []):
+            if v.get("label") == "Before formatting":
+                return [l for l in v.get("lines", []) if l.get("text", "").strip()] and v["lines"]
+        return []
+    return s.get("lines", []) if any(l.get("text", "").strip() for l in s.get("lines", [])) else []
+
+
 def load_class(kid):
     s = load_json(os.path.join(class_dir(kid), "class.json"), EMPTY_CLASS)
     for p in s["points"]:  # older points had no id or kind

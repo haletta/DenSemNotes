@@ -80,6 +80,8 @@ A checklist shows each step. You can close the window; the class fills in as it 
 
 Turns the note itself into your MyNotes template: front matter, one title, sections, callouts, ==key terms== with a glossary, Q:/A: questions and a diagram. It blends your writing with the lecture summaries, transcript and slides; choose the mix from the arrow next to the button (Mostly my notes, Balanced, Mostly the lecture, Only my notes).
 
+**New lesson from transcript & slides** (in the Format as lesson menu, the Lesson & export menu, or right-click any class in the list) writes a fresh lesson from what a class already has: its transcript, slides and documents, plus the notes you wrote yourself (as they were before any earlier formatting, never from an earlier lesson). Use it to remake a lesson in the new style or after adding slides. The current lesson is kept: **Restore** brings it back.
+
 There's no extra window: the formatted lesson replaces the note in the editor. A bar above it shows the upload checks, **Save .md** and **Restore original**. Your original note is always kept.
 
 ### Built from your template

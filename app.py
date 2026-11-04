@@ -27,7 +27,8 @@ import spell  # noqa: E402
 from ai import NAMES, ai_ready, ask_ai, ollama_info, ollama_pull  # noqa: E402
 from lesson import LessonBuilder, export_class, save_lesson, template_info, template_path  # noqa: E402
 from live import Recorder, Summarizer, Transcriber  # noqa: E402
-from store import (APP_NAME, CFG_PATH, Library, class_meta, load_class, load_json, new_id, save_class, save_json)  # noqa: E402
+from store import (APP_NAME, CFG_PATH, Library, class_meta, load_class, load_json, new_id, original_notes, save_class,
+                   save_json)  # noqa: E402
 from words import TfIdf  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -165,8 +166,11 @@ class Hub:
         lines = [{"text": x, "t": None, "sl": sl} for x, sl in zip(texts, links)]
 
         def fn(s):
-            s.setdefault("versions", []).append({"at": time.time(), "label": "Before formatting", "lines": s["lines"]})
-            s["versions"] = s["versions"][-10:]
+            label = "Earlier lesson" if s.get("formatted") else "Before formatting"
+            s.setdefault("versions", []).append({"at": time.time(), "label": label, "lines": s["lines"]})
+            originals = [v for v in s["versions"] if v.get("label") == "Before formatting"][:1]
+            rest = [v for v in s["versions"] if v not in originals]
+            s["versions"] = originals + rest[-(10 - len(originals)):]  # never lose my original notes
             s["lines"] = lines
             s["lesson_md"] = md
             s["formatted"] = {"at": time.time(), "note": note, "blend": blend}
@@ -181,14 +185,21 @@ class Hub:
             if not s.get("versions"):
                 raise ValueError("There's no earlier version of these notes.")
             v = s["versions"].pop()
-            s["versions"].append({"at": time.time(), "label": "Formatted lesson", "lines": s["lines"]}) if s.get("formatted") else None
-            s["versions"] = s["versions"][-10:]
+            if s.get("formatted"):
+                s["versions"].append({"at": time.time(), "label": "Formatted lesson", "lines": s["lines"]})
+            originals = [x for x in s["versions"] if x.get("label") == "Before formatting"][:1]
+            rest = [x for x in s["versions"] if x not in originals]
+            s["versions"] = originals + rest[-(10 - len(originals)):]
             s["lines"] = v["lines"]
-            s["formatted"] = None
+            if v.get("label") in ("Earlier lesson", "Formatted lesson"):  # going back to a lesson: still a lesson
+                s["formatted"] = s.get("formatted") or {"at": v.get("at", time.time()), "note": "", "blend": ""}
+            else:
+                s["formatted"] = None
 
         self.update_class(kid, fn)
         s = self.class_copy(kid)
-        self.emit("formatted", {"kid": kid, "lines": s["lines"], "formatted": None, "versions": len(s["versions"]), "restored": True})
+        self.emit("formatted", {"kid": kid, "lines": s["lines"], "formatted": s.get("formatted"), "versions": len(s["versions"]),
+                                "restored": not s.get("formatted"), "back": True})
         self.refresh_meta(kid, s)
 
     def course_of(self, kid):
@@ -599,6 +610,14 @@ class App:
                 "tags": "", "bible": str(data.get("bible") or self.hub.cfg["ui"].get("bible") or ""), "class_name": fallback,
                 "blend": "notes" if blend == "only_notes" else blend,
                 "sources": ["wrote"] if blend == "only_notes" else ["wrote", "heard"]}
+        if data.get("source") == "material":
+            # a new lesson from what the class already has: transcript, summaries, slides and documents, plus the
+            # notes I wrote myself (as they were before any earlier formatting); never from an earlier lesson
+            ready = [d for d in s.get("docs", []) if d.get("status") == "ready"]
+            if not s.get("segs") and not ready and not original_notes(s):
+                return {"ok": False, "error": "This class has no transcript, slides or notes to make a lesson from."}
+            opts.update(source="material", blend="balanced",
+                        class_name=(s.get("overall") or {}).get("title") or k["name"])
         return self.lesson.start(kid, opts, replace=True)
 
     def template_upload(self, body):
