@@ -42,11 +42,53 @@ def _secs(h, m, s, ms=None):
     return int(h or 0) * 3600 + int(m) * 60 + int(s) + (int((ms or "0").ljust(3, "0")[:3]) / 1000)
 
 
+def decode(raw):
+    """Text from bytes in whatever encoding a text editor used: UTF-8, UTF-16 (Windows 'Unicode', Word),
+    Windows-1252 or old Mac Roman."""
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return raw[3:].decode("utf-8", "replace")
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16", "replace")
+    sample = raw[:4000]
+    if sample and sample.count(b"\x00") > len(sample) // 4:  # UTF-16 without a byte-order mark
+        even, odd = sample[0::2].count(0), sample[1::2].count(0)
+        return raw.decode("utf-16-be" if even > odd else "utf-16-le", "replace")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        pass
+    text = raw.decode("cp1252", "replace")
+    if sum(text.count(c) for c in "ÕÒÓÐÑ") > sum(text.count(c) for c in "’“”–—"):
+        text = raw.decode("mac_roman", "replace")
+    return text
+
+
+def rtf_text(raw):
+    if MAC:
+        try:
+            r = subprocess.run(["textutil", "-convert", "txt", "-stdout", "-stdin"], input=raw.encode("utf-8", "replace")
+                               if isinstance(raw, str) else raw, capture_output=True, timeout=120)
+            if r.returncode == 0 and r.stdout.strip():
+                return r.stdout.decode("utf-8", "replace")
+        except Exception:
+            pass
+    if isinstance(raw, bytes):
+        raw = decode(raw)
+    raw = re.sub(r"\\'([0-9a-fA-F]{2})", lambda m: bytes([int(m.group(1), 16)]).decode("cp1252", "replace"), raw)
+    raw = re.sub(r"\\(par|line)\b ?", "\n", raw)
+    raw = re.sub(r"\{\\(fonttbl|colortbl|\*|stylesheet|info)[^{}]*(\{[^{}]*\}[^{}]*)*\}", "", raw)
+    raw = re.sub(r"\\[a-zA-Z]+-?\d* ?|[{}]", "", raw)
+    return raw
+
+
 def read_text(path, ext):
     """Plain text of a transcript file."""
     if ext in ("txt", "md", "text", "srt", "vtt", "sbv", "json"):
-        with open(path, encoding="utf-8", errors="replace") as f:
-            return f.read()
+        with open(path, "rb") as f:
+            raw = f.read()
+        if raw.lstrip().startswith(b"{\\rtf"):  # TextEdit RTF saved with a .txt name
+            return rtf_text(raw)
+        return decode(raw)
     if ext == "docx":
         import docx
 
@@ -76,11 +118,8 @@ def read_text(path, ext):
         return subprocess.run(["textutil", "-convert", "txt", "-stdout", path], capture_output=True, text=True,
                               timeout=120).stdout
     if ext == "rtf":
-        with open(path, encoding="utf-8", errors="replace") as f:
-            raw = f.read()
-        raw = re.sub(r"\\par[d]?", "\n", raw)
-        raw = re.sub(r"\\[a-z]+-?\d* ?|[{}]", "", raw)
-        return raw
+        with open(path, "rb") as f:
+            return rtf_text(f.read())
     raise ValueError("DenSem Class can't read that file type. Save the transcript as text, Word or PDF.")
 
 
@@ -151,8 +190,8 @@ def parse_transcript(text):
             segs.append({"t": round(t, 1), "text": x})
         segs.sort(key=lambda s: s["t"])
         return _merge_short(segs), True
-    # untimed: sentences at a speaking pace
-    body = " ".join(SPEAKER_LEAD.sub("", l.strip()) for l in lines if l.strip())
+    # untimed: sentences at a speaking pace (lines that are only a number are counters, not speech)
+    body = " ".join(SPEAKER_LEAD.sub("", l.strip()) for l in lines if l.strip() and not re.fullmatch(r"\d{1,4}", l.strip()))
     segs, words, cur = [], 0, []
     for snt in sentences(body) or [body]:
         cur.append(snt)
@@ -270,6 +309,9 @@ class Importer:
         if not job:
             return {"ok": False, "error": "Start the import again."}
         ext = (os.path.splitext(name)[1][1:] or "txt").lower()
+        if not body:
+            return {"ok": False, "error": f'"{name}" arrived empty. Try again, or open it and paste the text into '
+                                          "\"Or paste the transcript\"."}
         if ext not in TEXT_EXT | MEDIA_EXT:
             return {"ok": False, "error": f'"{name}" isn\'t a transcript or recording DenSem Class can read. Use text, '
                                           "Word, PDF, subtitles (.srt/.vtt) or an audio/video file."}
@@ -328,9 +370,17 @@ class Importer:
                     segs = self._transcribe(kid, lec["path"])
                     timed = True
                 else:
-                    segs, timed = parse_transcript(read_text(lec["path"], lec["ext"]))
+                    text = read_text(lec["path"], lec["ext"])
+                    segs, timed = parse_transcript(text)
                 if not segs:
-                    raise ValueError("No words were found in the lecture file.")
+                    size = os.path.getsize(lec["path"]) if os.path.exists(lec["path"]) else 0
+                    if lec["media"]:
+                        raise ValueError(f"No speech was found in {lec['name']}.")
+                    if lec["ext"] == "pdf":
+                        raise ValueError(f"{lec['name']} has no text to read (it may be scanned pictures). Copy the text "
+                                         "out of it, or import the recording instead.")
+                    raise ValueError(f"No words were found in {lec['name']} ({size:,} bytes). Open it, copy the text and "
+                                     "paste it into \"Or paste the transcript\".")
                 with hub.lock:
                     for x in segs:
                         x.setdefault("sl", None)

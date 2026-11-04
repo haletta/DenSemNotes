@@ -1453,7 +1453,8 @@ $('importDlg').addEventListener('drop', e => { if (!hasFiles(e)) return; e.preve
   const fs = [...e.dataTransfer.files]; const lec = fs.find(f => /\.(txt|md|srt|vtt|sbv)$/i.test(f.name) || MEDIA_RX.test(f.name));
   if (lec && !imp.lec){ setLecture([lec]); fs.splice(fs.indexOf(lec), 1); } if (fs.length) addSlides(fs); });
 $('impCancel').onclick = () => $('importDlg').close();
-async function rawPost(url, file){ return fetch(url, {method: 'POST', body: file}).then(r => r.json()).catch(() => ({ok: false, error: 'Upload failed.'})); }
+async function fileBody(f){ try { return await f.arrayBuffer(); } catch { return f; } }   // a sized body: WebKit can't stream a File without a length
+async function rawPost(url, file){ return fetch(url, {method: 'POST', body: await fileBody(file)}).then(r => r.json()).catch(() => ({ok: false, error: 'Upload failed.'})); }
 $('impGo').onclick = async () => {
   if ($('impGo').dataset.open){ const k = $('impGo').dataset.open; $('importDlg').close(); openClass(k); return; }
   const paste = $('impPaste').value.trim(), notes = $('impNotes').value.trim();
@@ -2334,7 +2335,7 @@ async function uploadFiles(files){
     if (f.size > 300 * 1024 * 1024){ toast(`${f.name} is over 300 MB.`); continue; }
     toast(`Uploading ${f.name}…`, 2000);
     try {
-      const r = await fetch(`/upload?kid=${encodeURIComponent(S.kid)}&name=${encodeURIComponent(f.name)}`, {method: 'POST', body: f}).then(r => r.json());
+      const r = await fetch(`/upload?kid=${encodeURIComponent(S.kid)}&name=${encodeURIComponent(f.name)}`, {method: 'POST', body: await fileBody(f)}).then(r => r.json());
       if (!r.ok) toast(r.error, 6000);
     } catch { toast(`Couldn't upload ${f.name}.`); }
   }

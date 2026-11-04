@@ -821,32 +821,56 @@ def make_handler(app):
             else:
                 self._json({"error": "not found"}, 404)
 
+        def read_body(self, limit=None):
+            """The request body, whether it came with a length or in chunks (WebKit can send files either way)."""
+            if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+                parts, total = [], 0
+                while True:
+                    size = int((self.rfile.readline().split(b";")[0].strip() or b"0"), 16)
+                    if size == 0:
+                        while self.rfile.readline() not in (b"\r\n", b"\n", b""):
+                            pass
+                        break
+                    parts.append(self.rfile.read(size))
+                    self.rfile.readline()
+                    total += size
+                    if limit and total > limit:
+                        raise ValueError("too large")
+                return b"".join(parts)
+            n = int(self.headers.get("Content-Length") or 0)
+            return self.rfile.read(n) if n else b""
+
         def do_POST(self):
             url = urllib.parse.urlparse(self.path)
             n = int(self.headers.get("Content-Length") or 0)
             if url.path == "/template/upload":
-                body = self.rfile.read(min(n, 500_000))
-                return self._json(app.template_upload(body))
+                return self._json(app.template_upload(self.read_body(500_000)[:500_000]))
             if url.path == "/import/file":
                 q = urllib.parse.parse_qs(url.query)
                 if n > MAX_UPLOAD * 4:
                     self.rfile.read(n)
                     return self._json({"ok": False, "error": "That file is over 1.2 GB."})
-                body = self.rfile.read(n)
+                try:
+                    body = self.read_body(MAX_UPLOAD * 4)
+                except ValueError:
+                    return self._json({"ok": False, "error": "That file is over 1.2 GB."})
                 return self._json(app.importer.lecture_file((q.get("kid") or [""])[0], (q.get("name") or ["lecture.txt"])[0], body))
             if url.path == "/upload":
                 if n > MAX_UPLOAD:
                     self.rfile.read(n)
                     return self._json({"ok": False, "error": "That file is over 300 MB."})
                 q = urllib.parse.parse_qs(url.query)
-                body = self.rfile.read(n)
+                try:
+                    body = self.read_body(MAX_UPLOAD)
+                except ValueError:
+                    return self._json({"ok": False, "error": "That file is over 300 MB."})
                 try:
                     return self._json(app.upload((q.get("kid") or [""])[0], (q.get("name") or ["file"])[0], body))
                 except Exception as e:
                     traceback.print_exc()
                     return self._json({"ok": False, "error": str(e)}, 500)
             try:
-                data = json.loads(self.rfile.read(n) or b"{}")
+                data = json.loads(self.read_body() or b"{}")
             except ValueError:
                 data = {}
             routes = {
