@@ -3,6 +3,7 @@ any notes taken. The app then builds what a recorded class has: timed transcript
 the note helper (points, quotes, books, terms, examples, questions, due dates) and class notes in the
 student's MyNotes template.
 """
+import procs
 import html
 import os
 import re
@@ -66,8 +67,8 @@ def decode(raw):
 def rtf_text(raw):
     if MAC:
         try:
-            r = subprocess.run(["textutil", "-convert", "txt", "-stdout", "-stdin"], input=raw.encode("utf-8", "replace")
-                               if isinstance(raw, str) else raw, capture_output=True, timeout=120)
+            r = procs.run(["textutil", "-convert", "txt", "-stdout", "-stdin"], input=raw.encode("utf-8", "replace")
+                          if isinstance(raw, str) else raw, timeout=120, text=False)
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout.decode("utf-8", "replace")
         except Exception:
@@ -115,8 +116,7 @@ def read_text(path, ext):
         with zipfile.ZipFile(path) as z:
             return html.unescape(re.sub(r"<[^>]+>", "\n", z.read("content.xml").decode("utf-8", "replace")))
     if ext in ("rtf", "doc") and MAC:
-        return subprocess.run(["textutil", "-convert", "txt", "-stdout", path], capture_output=True, text=True,
-                              timeout=120).stdout
+        return procs.run(["textutil", "-convert", "txt", "-stdout", path], timeout=120).stdout
     if ext == "rtf":
         with open(path, "rb") as f:
             return rtf_text(f.read())

@@ -1,4 +1,5 @@
 """Talking to the AI chosen in Preferences: Ollama (local), Gemini or Groq (free tiers), or Claude."""
+import procs
 import json
 import os
 import re
@@ -184,7 +185,7 @@ def claude_code_info():
             "install": CC_INSTALL}
     if exe:
         try:
-            r = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=20, env=_cc_env())
+            r = procs.run([exe, "--version"], timeout=20, env=_cc_env())
             info["version"] = (r.stdout or r.stderr).strip().split("\n")[0][:60]
         except Exception:
             pass
@@ -204,8 +205,7 @@ def claude_code_ask(prompt, model="sonnet", timeout=900):
            "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task,Agent,Read,Glob,Grep"]
     with tempfile.TemporaryDirectory(prefix="densem-claude-") as work:
         try:
-            r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, cwd=work,
-                               env=_cc_env())
+            r = procs.run(cmd, input=prompt, timeout=timeout, cwd=work, env=_cc_env())
         except subprocess.TimeoutExpired:
             raise RuntimeError("Claude Code took too long to answer.") from None
     out = (r.stdout or "").strip()

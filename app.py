@@ -5,6 +5,7 @@ Courses hold classes ("2026-10-26-Notes"). Each class has your notes, a live tra
 update as the lecturer talks, and any slides/documents you upload, with notes wired to slide pages.
 """
 import json
+import signal
 import os
 import queue
 import re
@@ -55,6 +56,7 @@ DEFAULTS = dict(
     lesson_model="sonnet",
     github_token="",  # only needed when the app updates from a private repository
     auto_update_check=True,
+    pending_final=[],  # classes still recording when the app was quit: their final summary runs on next start
     gemini_model="gemini-flash-lite-latest",
     groq_key="",
     groq_model="llama-3.3-70b-versatile",
@@ -469,7 +471,9 @@ class App:
 
     def _set_doc(self, kid, did, **kw):
         if kw.get("status") == "ready":
-            threading.Timer(0.5, lambda: self.hub.refresh_meta(kid)).start()
+            t = threading.Timer(0.5, lambda: self.hub.refresh_meta(kid))
+            t.daemon = True
+            t.start()
         def fn(s):
             for d in s["docs"]:
                 if d["id"] == did:
@@ -773,10 +777,60 @@ class App:
         return export_class(self.hub.class_copy(kid), self.hub.course_name(kid), k.get("name", "Class"))
 
     def shutdown(self):
+        """Quit quickly: save everything, stop the microphone, close every program DenSemNotes started.
+        The final summary of a lecture that was still recording is left for the next start, so quitting never
+        waits on transcription or the AI."""
+        if getattr(self, "_shut", False):
+            return
+        self._shut = True
+        hub = self.hub
         try:
-            self.stop(wait=True)
+            if hub.recording:
+                with hub.lock:
+                    hub.s["elapsed"] = hub.now()
+                    hub.recording = False
+                    kid = hub.kid
+                rec, self.rec = self.rec, None
+                if rec:
+                    rec.halt(2.0)
+                pending = set(hub.cfg.get("pending_final") or [])
+                pending.add(kid)
+                hub.cfg["pending_final"] = sorted(pending)
+                save_json(CFG_PATH, hub.cfg)
+            hub.persist()
+        except Exception:
+            traceback.print_exc()
+        try:
+            import procs
+            procs.close_all()
+        except Exception:
+            traceback.print_exc()
+        try:  # a local AI keeps the model in memory for 30 minutes; let it go now
+            if hub.cfg.get("provider") == "ollama" and hub.cfg.get("ollama_model"):
+                import urllib.request
+                req = urllib.request.Request("http://127.0.0.1:11434/api/generate", data=json.dumps(
+                    {"model": hub.cfg["ollama_model"], "keep_alive": 0}).encode(), headers={"content-type": "application/json"})
+                urllib.request.urlopen(req, timeout=1.5).read()
         except Exception:
             pass
+
+    def finish_pending(self):
+        """Lectures that were still recording when the app was last quit: make their final summary now."""
+        time.sleep(5)
+        hub = self.hub
+        for kid in list(hub.cfg.get("pending_final") or []):
+            try:
+                if hub.lib.klass(kid):
+                    with hub.lock:
+                        s = hub.s if kid == hub.kid else load_class(kid)
+                    self.summ.tick(kid, s, True, s["elapsed"])
+                    if kid != hub.kid:
+                        save_class(kid, s)
+                    hub.refresh_meta(kid, s)
+            except Exception:
+                traceback.print_exc()
+            hub.cfg["pending_final"] = [k for k in hub.cfg.get("pending_final") or [] if k != kid]
+            save_json(CFG_PATH, hub.cfg)
 
 
 # ---------------------------------------------------------------- local web server for the window
@@ -1034,6 +1088,14 @@ def main():
     threading.Thread(target=app.tx.load, daemon=True).start()
     threading.Thread(target=app.summ.loop, daemon=True).start()
     threading.Thread(target=app.updater.loop, daemon=True).start()
+    threading.Thread(target=app.finish_pending, daemon=True).start()
+    hub_quit = lambda *a: quit_now(app)  # noqa: E731
+    for sig in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        try:
+            signal.signal(sig, hub_quit)
+        except Exception:
+            pass
+    app.hub.quit_now = lambda: quit_now(app)
 
     try:
         if "--browser" in sys.argv:
@@ -1080,7 +1142,21 @@ def main():
         except KeyboardInterrupt:
             pass
     finally:
+        quit_now(app)
+
+
+def quit_now(app, code=0):
+    """Save, close what we started, and end the process for sure (a stuck thread or the audio driver can't
+    keep the app alive and 'not responding' after its window is gone)."""
+    guard = threading.Timer(6.0, lambda: os._exit(code))
+    guard.daemon = True
+    guard.start()
+    try:
         app.shutdown()
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(code)
 
 
 if __name__ == "__main__":

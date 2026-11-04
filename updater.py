@@ -5,6 +5,7 @@ installed or updated) records which commit is installed. The app compares that w
 the branch, shows what changed, and on request downloads that commit, keeps the current files as
 "previous" (so you can go back), runs the installer in update mode, and restarts.
 """
+import procs
 import json
 import os
 import shutil
@@ -163,8 +164,7 @@ class Updater:
             self._backup()
             self._step("Installing (a minute or two if new libraries are needed)…")
             if MAC:
-                r = subprocess.run(["bash", os.path.join(src, "Install.command"), "--update"], capture_output=True,
-                                   text=True, timeout=1800)
+                r = procs.run(["bash", os.path.join(src, "Install.command"), "--update"], timeout=1800, keep=True)
                 if r.returncode != 0:
                     raise RuntimeError("The installer stopped: " + (r.stderr or r.stdout)[-400:])
             else:  # development copy on another system: just copy the files over
@@ -220,12 +220,14 @@ class Updater:
         """Quit and open the app again (macOS), so the new version runs."""
         if self.hub.recording:
             return {"ok": False, "error": "Pause recording first."}
-        self.hub.persist()
         if MAC:
             app_path = os.path.expanduser("~/Applications/DenSemNotes.app")
             if not os.path.exists(app_path):  # installed before the rename
                 app_path = os.path.expanduser("~/Applications/DenSem Class.app")
             subprocess.Popen(["/bin/sh", "-c", f'sleep 2; open "{app_path}"'], start_new_session=True)
-            threading.Timer(0.4, lambda: os._exit(0)).start()
+            quit_now = getattr(self.hub, "quit_now", None)
+            t = threading.Timer(0.4, quit_now if quit_now else (lambda: (self.hub.persist(), os._exit(0))))
+            t.daemon = True
+            t.start()
             return {"ok": True}
         return {"ok": False, "error": "Restart the app to use the new version."}

@@ -6,6 +6,7 @@ Conversion, best first:
   Word/Pages/RTF documents  -> Pages -> LibreOffice -> our own pages with the text and pictures
   PDFs are used as they are; photos become one-page documents.
 """
+import procs
 import html
 import json
 import os
@@ -45,10 +46,26 @@ def soffice():
 
 
 def _run(cmd, timeout=240):
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    r = procs.run(cmd, timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout or "failed").strip()[:300])
     return r.stdout
+
+
+def _app_running(app):
+    """True/False if we can tell whether Keynote/Pages is open already, None if we can't."""
+    try:
+        r = procs.run(["osascript", "-e", f'application "{app}" is running'], timeout=10)
+        return r.stdout.strip() == "true"
+    except Exception:
+        return None
+
+
+def _quit_app(app):
+    try:
+        procs.run(["osascript", "-e", f'tell application "{app}" to quit saving no'], timeout=20)
+    except Exception:
+        pass
 
 
 def _iwork_export(app, src, out):
@@ -70,6 +87,7 @@ def _iwork_export(app, src, out):
     for line in script:
         cmd += ["-e", line]
     with APP_LOCK:
+        was_open = _app_running(app)
         try:
             _run(cmd + [src, out], timeout=300)
         except Exception as e:
@@ -78,6 +96,9 @@ def _iwork_export(app, src, out):
                 raise RuntimeError(f"macOS hasn't allowed DenSemNotes to use {app}. Turn it on in System Settings › "
                                    f"Privacy & Security › Automation › DenSemNotes › {app}, then choose Convert again.")
             raise
+        finally:
+            if was_open is False:  # DenSemNotes opened Keynote/Pages for this: close it again
+                _quit_app(app)
     if not os.path.exists(out) or os.path.getsize(out) < 100:
         raise RuntimeError(f"{app} did not export a PDF")
 

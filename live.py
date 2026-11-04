@@ -146,6 +146,19 @@ class Recorder:
         if self.thread:
             self.thread.join(timeout=120)
 
+    def halt(self, wait=2.0):
+        """Quitting the app: stop the microphone now and give the last piece of speech a moment, no more."""
+        self.running = False
+        try:
+            if self.stream:
+                self.stream.stop()
+                self.stream.close()
+        except Exception:
+            pass
+        self.stream = None
+        if self.thread:
+            self.thread.join(timeout=wait)
+
     def _work(self):
         consumed = 0
         buf = np.zeros(0, np.float32)

@@ -165,6 +165,8 @@ Updates come from the repository named in `update.json` (haletta/DenSemNotes). U
 
 ## Troubleshooting
 
+- **Quitting**: closing the window or ⌘Q quits at once, even while recording. Your notes and everything heard so far are saved; the lecture's final summary is made in the background the next time you open the app. Programs DenSemNotes started (Claude Code, slide conversions, and Keynote or Pages if it opened them) are closed too, and a local Ollama model is unloaded. An update that's already installing is left to finish by itself.
+
 - **Mic bars stay grey**: System Settings › Privacy & Security › Microphone › turn on DenSemNotes, then reopen the app.
 - **Slides look different from PowerPoint**: Keynote gives an exact copy. If macOS hasn't allowed DenSemNotes to use Keynote, the app draws PowerPoint slides itself (pictures, shapes, tables, charts and SmartArt are kept, but fancy effects and some fonts may differ). To get exact slides: System Settings › Privacy & Security › Automation › DenSemNotes › turn on Keynote, then in the Slides tab choose **⋯ › Convert again**.
 - **Slides won't convert at all**: export them as PDF and upload the PDF.
