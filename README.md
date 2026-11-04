@@ -72,7 +72,7 @@ For a class DenSemNotes didn't record. Click the import button (the arrow into a
    - Recordings: audio or video (.mp3, .m4a, .wav, .mp4, .mov…), transcribed on your Mac with the same offline speech model. A one-hour recording takes a while, and the progress shows as it goes.
 3. Add **slides and handouts** (optional). Each part of the lecture is linked to the slide it's about.
 4. Paste **notes you took** in that class (optional). They're kept and blended into the class notes.
-5. Choose what to make: **summaries and note helper**, and **class notes** in your MyNotes template. Then press **Import**.
+5. Press **Import**. The app goes straight to your **class notes** in your MyNotes template: it reads the whole lecture and slides at once, without making 10-minute part summaries or note-helper picks along the way. (Tick **Also 10-minute part summaries and note helper items** if you want those too.)
 
 A checklist shows each step. You can close the window; the class fills in as it goes and a message says when it's done. Imported classes show an **Imported** tag on their card and work like any other class: Ask, Read view, Format as lesson, export.
 
@@ -84,9 +84,16 @@ There's no extra window: the formatted lesson replaces the note in the editor. A
 
 ### Built from your template
 
-The lesson follows the **AI Conversion Prompt** in your MyNotes Template.md, word for word: front matter, the IMPORTANT main idea, sections that fit one slide, WARNING/TIP/EXAMPLE callouts, ==key terms== with a Glossary, verse blocks (references only, no Bible text), steps, tabs, a mermaid diagram, Q:/A: after sections, and a Summary. Two changes of yours win over the template: no tags, and no Review questions at the end. Your lecturer's own words and the authors they quote are kept.
+The lesson follows the **AI Conversion Prompt** in your class note template. The built-in template asks for a readable, lively study page you can review in 5–10 minutes:
 
-The template ships with the app. To use a newer one, put it at `~/Library/Application Support/DenSemNotes/template.md`; delete that file to go back to the bundled one.
+- front matter, one title and an IMPORTANT callout with the main idea;
+- sections in the order taught, each opening with why it matters, then short bullets with the key phrase in **bold**;
+- the lecturer's own words, examples and stories (EXAMPLE callouts), quotes with who said them, and books with their *titles*, plus short clarifying details where they help;
+- ==key terms== with a Glossary, and a short Summary at the end;
+- steps, tabs, a diagram, a verse block or questions **only when the lecture calls for them**;
+- no greetings, logistics, repeats or filler, no tags, and no Review questions.
+
+**Edit the template** in **Preferences › Editor › Class note template › Edit…**. **Go to AI Conversion Prompt** jumps to the part the AI follows; change it, press **Save**, and your next class notes follow it. **Use the built-in one** goes back.
 
 ### Read view
 

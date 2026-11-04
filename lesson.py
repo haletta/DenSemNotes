@@ -22,18 +22,15 @@ BLENDS = {
 
 LESSON_RULES = """FORMAT RULES (MyNotes Markdown), follow exactly:
 1. Start with front matter between --- lines: title, course, order{bible_rule}. No tags. Use these values where given: {fm}
-2. One "# Title" (same as the front matter title). Split content into "## Sections" whose headings are 2-6 words, each short enough for one slide (3-6 bullets or 1-2 short paragraphs). Use "###" for sub-points. Never skip heading levels.
-3. Right after the title, a "> [!IMPORTANT]" callout with the lesson's main idea in 1-2 sentences.
-4. Use callouts where they fit: "> [!NOTE]" background, "> [!TIP]" application, "> [!WARNING]" common mistakes, "> [!EXAMPLE]" illustrations or stories the lecturer told. At most 2 IMPORTANT callouts.
-5. Mark key terms with ==term== on first use, and end the file with a "## Glossary" section of "- term: definition" lines, spelled exactly as marked.
-6. Bible references: standard form with chapter and verse (e.g. "Eph 2:8-9", "1 Cor 13:4-7"). Speech recognition writes them as words ("john three sixteen"); convert them. For the main passage of a section, a code block with language "verse" containing only the reference. Never quote Bible text. Skip this rule if the lecture has no Bible references.
-7. Processes or sequences: a heading containing "Steps" with a numbered list.
-8. Two or more views compared: "::: tabs" then "### Name" blocks, closed with ":::".
-9. At least one ```mermaid diagram (flowchart, timeline or mindmap) where it clarifies relationships, order or history. Put labels containing parentheses, colons or quotes in double quotes.
-10. Optional background or deep detail inside <details><summary>Title</summary> ... </details>, with blank lines inside.
-11. After major sections, 1-2 self-check questions as a "Q:" line followed by an "A:" line (1-2 sentence answers). Questions the lecturer asked in class make good Q:/A: pairs. Then a "## Summary" section (3-5 bullet takeaways) right before the Glossary. No Review section and no questions at the end.
-12. Keep any [[Lesson Title]] links the student wrote.
-13. Output only the Markdown file. No code fence around it, nothing before or after it."""
+2. One "# Title" (same as the front matter title), then a "> [!IMPORTANT]" callout with the lesson's main idea in 1-2 sentences.
+3. "## Sections" in the order the lecturer taught, with headings of 2-6 words that say something (not "Introduction" or "Main Point 2"), each short enough for one slide. "###" only for real sub-points; never skip heading levels.
+4. Each section opens with one or two plain sentences on what it's about and why it matters, then 3-6 bullets, one idea each, key phrase in **bold**.
+5. Mark key terms with ==term== on first use, and end the file with a "## Glossary" of "- term: meaning" lines (3-8 real terms, spelled exactly as marked).
+6. Bible references: standard form with chapter and verse (e.g. "Eph 2:8-9"). Speech recognition writes them as words ("john three sixteen"); convert them. For a passage central to a section, a code block with language "verse" containing only the reference. Never quote Bible text.
+7. Only when the content calls for it, never as decoration: a heading containing "Steps" with a numbered list for a real process; "::: tabs" with "### Name" blocks and ":::" when views are compared; one ```mermaid diagram when a relationship or sequence is easier to see (labels with parentheses, colons or quotes in double quotes); <details><summary>Title</summary> ... </details> for optional depth; "Q:"/"A:" only for questions the lecturer actually asked.
+8. End with "## Summary" (3-5 takeaways), then the Glossary. No Review section and no questions at the end.
+9. Keep any [[Lesson Title]] links the student wrote.
+10. Output only the Markdown file. No code fence around it, nothing before or after it."""
 
 CAPS = {"ollama": 6000, "groq": 3500, "gemini": 40000, "claude": 40000}
 
@@ -71,14 +68,14 @@ def template_info():
             "rules": bool(template_rules())}
 
 
-STYLE = """HOW THE LESSON SHOULD READ (it is shown like a clean study page):
-- Mostly short bullets under each ## section; a short paragraph only to introduce a list or a quote.
-- Bold the key phrase of a bullet with **...**, and use *italics* for words the lecturer stressed.
-- When the lecturer quotes or credits someone (an author, a book), name them: "Henri Nouwen on ==spiritual reading==:". Lines marked QUOTE: keep word for word as a "> " quote with "— Name" after it. Lines marked FROM A BOOK/AUTHOR: name the author and the *Book Title* in italics. Lines marked KEY TERM: mark the term with ==term== and add it to the Glossary.
-- Give a section an "Example:" bullet when the lecturer told a story or gave a case, or use > [!EXAMPLE].
-- Use > [!WARNING] for a mistake or danger the lecturer warned about, phrased as one clear sentence.
-- Keep the lecturer's own words and images where they are striking (for example "sheep first").
-- Section headings are the lecture's main ideas in 2-6 words, in the order the lecturer taught them."""
+STYLE = """HOW THE LESSON SHOULD READ (a clear, lively study page the student enjoys reading in 5-10 minutes):
+- Lead with the point: each section opens with why it matters, then short bullets with the key phrase in **bold**; *italics* for words the lecturer stressed.
+- Keep what makes it memorable: the lecturer's own striking words and images (for example "sheep first"); stories and cases they told as a > [!EXAMPLE] of 2-3 sentences; quotes word for word as "> " lines with "— Name"; ideas from books as Author, *Book Title*.
+- Lines marked QUOTE: keep word for word as a quote with the name. Lines marked FROM A BOOK/AUTHOR: name the author and the *Book Title*. Lines marked KEY TERM: mark the term with ==term== and add it to the Glossary. Lines marked EXAMPLE: keep as an EXAMPLE callout.
+- > [!WARNING] for a mistake or danger the lecturer warned about; > [!TIP] for a practical application; > [!NOTE] for useful background.
+- Add a short clarifying detail from the material (a date, a name, what a word means, the context) where it makes a point easier to follow.
+- Cut the noise: greetings, attendance, tech trouble, housekeeping, "any questions?", repeats (merge them), filler and vague statements.
+- Prefer fewer, fuller sections over many thin ones."""
 
 
 OVERRIDES = """THE STUDENT'S CHANGES (these win over anything above):

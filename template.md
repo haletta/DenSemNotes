@@ -241,16 +241,26 @@ The text inside `[[ ]]` must match the other lesson's title exactly. These links
 
 Tables for comparisons, `- [ ]` checklists for applications, images with `![description](url)`, and `---` for a visual break.
 
+## Writing Notes That Read Well
+
+A good lesson reads like a clear, friendly study page, not a form to fill in.
+
+- **Lead with the point.** Start each section with one or two sentences that say what it's about and why it matters, then the bullets.
+- **One idea per bullet.** Bold the key phrase (**sheep first**) so the eye can skim; keep bullets to one or two lines.
+- **Keep the life in it.** The lecturer's own striking words, a story or example they told, a quote with who said it, a book with its *title*: these are what make notes memorable. Keep them.
+- **Cut the noise.** Leave out greetings, attendance, tech trouble, "any questions?", repeated points, filler and anything said only to fill time.
+- **Extras only when they help.** A diagram when there's a real relationship or sequence to see; steps when there's a real process; tabs when two views are compared; a verse block for a passage that's central. Never add one just to have it.
+- **Short beats long.** A lesson should read in 5–10 minutes. Five clear sections beat ten thin ones.
+
 ## Full Lesson Template
 
-Copy this and fill it in:
+Copy this and fill it in (leave out any part that doesn't fit the lecture):
 
 ````text
 ---
 title: LESSON TITLE
 course: COURSE NAME
 order: 1
-tags: [tag1, tag2]
 ---
 
 # LESSON TITLE
@@ -258,106 +268,89 @@ tags: [tag1, tag2]
 > [!IMPORTANT]
 > The single main idea of this lesson in one or two sentences.
 
-## Introduction
-Short opening paragraph. Mark the first ==key term== you use.
+## A Heading That Says Something
+One or two sentences: what this part is about and why it matters.
 
-```verse
-Book 1:1-3
-```
-
-## First Main Point
-Two or three short paragraphs or 3–6 bullets. Reference verses inline (John 1:1).
+- **Key phrase**: the point, in the lecturer's words where they were striking.
+- **Another key phrase**: a ==key term== explained the way the lecturer explained it.
+- Henri Nouwen, *Spiritual Direction*: the idea credited to the book.
 
 > [!EXAMPLE]
-> An illustration or story.
+> The story or case the lecturer told, in two or three sentences.
 
-Q: A question about this section?
-A: Its short answer.
+## The Next Idea in the Order Taught
+- **Key phrase**: the point.
+- **Key phrase**: the point (John 10:11).
 
-## Second Main Point
+> "A memorable line the lecturer said or read out."
+> — Who said it
 
-::: tabs
-### View A
-Explanation.
-
-### View B
-Explanation.
-:::
-
-```mermaid
-flowchart LR
-  A[Idea] --> B[Result]
-```
-
-## Steps to Apply
+## Steps to Apply (only if the lecture gave a process)
 1. First action
 2. Second action
-3. Third action
 
 ## Summary
 - Takeaway one
 - Takeaway two
 - Takeaway three
 
-## Review
-Q: Review question one?
-A: Answer one.
-
-Q: Review question two?
-A: Answer two.
-
-Related: [[Another Lesson Title]]
-
 ## Glossary
-- key term: its definition
+- key term: its meaning, as explained in class
 ````
 
 ## Checklist Before Uploading
 
-- [ ] Front matter at the very top
-- [ ] Only one `#` heading
-- [ ] Each `##` section fits on one slide
-- [ ] Main passage in a `verse` block
+- [ ] Front matter at the very top, and only one `#` heading
+- [ ] An IMPORTANT callout with the main idea
+- [ ] Each `##` section opens with why it matters and fits on one slide
+- [ ] The lecturer's examples, stories, quotes and sources are kept
+- [ ] No filler, repeats or class logistics
 - [ ] Key terms marked with `==` and defined in the Glossary
-- [ ] At least 3 `Q:` / `A:` pairs
-- [ ] At least one diagram, tab set or steps list
-- [ ] `[[Lesson links]]` match exact titles
+- [ ] A short Summary at the end
 
 ## AI Conversion Prompt
 
 Paste this into Claude (or another AI), followed by your existing notes, to convert them into MyNotes format:
 
 ````text
-Convert my notes below into a MyNotes lesson in Markdown. Keep ALL of my original content and meaning — reorganize and format it, don't remove my ideas or add new teaching. Do not quote Bible text; only write references.
+Turn my notes and the lecture below into one MyNotes lesson in Markdown: a clear, well-formatted, lively study page I'll enjoy reading and can review in 5-10 minutes. Keep all of the real content and meaning; reorganize and polish it, but don't add teaching that isn't in the material. Do not quote Bible text; only write references.
 
-Follow these rules exactly:
-
-1. Start with front matter:
+FORMAT (MyNotes Markdown):
+1. Front matter first:
    ---
-   title: (clear lesson title)
-   course: (course name if I mention one, otherwise leave blank)
+   title: (a clear lesson title)
+   course: (course name if given, otherwise leave blank)
    order: 1
-   tags: [3–5 lowercase topic tags]
    ---
-2. One "# Title". Split content into "## Sections" of 2–6 words each, each short enough for one slide (3–6 bullets or 1–2 short paragraphs). Use "###" for sub-points. Never skip heading levels.
-3. Right after the title, add a "> [!IMPORTANT]" callout with the main idea in 1–2 sentences.
-4. Use callouts where they fit: "> [!NOTE]" background, "> [!TIP]" application, "> [!WARNING]" common mistakes, "> [!EXAMPLE]" illustrations. Max 2 IMPORTANT callouts.
-5. Mark key terms with ==term== on first use, and add a "## Glossary" section at the very end with "- term: definition" lines (term spelled exactly the same).
-6. Bible references: write them in standard form with chapter and verse (e.g., "Eph 2:8-9", "1 Cor 13:4-7"). For the main passage of a section, use a code block with language "verse" containing only the reference. Where comparing translations helps, use ```verse KJV,NIV.
-7. When content is a process or sequence, use a heading containing "Steps" with a numbered list.
-8. When content compares two or more views, use:
-   ::: tabs
-   ### Name
-   content
-   :::
-9. Add at least one ```mermaid diagram (flowchart, timeline or mindmap) where it clarifies relationships, order or history. Put labels with parentheses, colons or quotes in double quotes.
-10. Put optional background or deep detail inside <details><summary>Title</summary> … </details>, with blank lines inside.
-11. After major sections add 1–2 self-check questions:
-    Q: question
-    A: 1–2 sentence answer
-    Then add a "## Summary" (3–5 bullet takeaways) and a "## Review" section with 3–5 more Q:/A: pairs.
-12. If my notes mention other lessons or topics I've written about, link them as [[Exact Title]].
-13. Output only the Markdown, in one code block, nothing before or after.
+2. One "# Title". Then a "> [!IMPORTANT]" callout with the lesson's main idea in 1-2 sentences.
+3. "## Sections" in the order the lecturer taught. Headings are 2-6 words that say something ("Sheep Before Shepherds", not "Introduction" or "Main Point 2"). Each section fits on one slide. Use "###" only for real sub-points; never skip heading levels.
+4. Start each section with one or two plain sentences: what it's about and why it matters. Then 3-6 bullets, one idea each, with the key phrase in **bold**. Use *italics* for words the lecturer stressed.
+5. Mark key terms with ==term== the first time they appear, and end with a "## Glossary" of "- term: meaning" lines (3-8 real terms, spelled exactly as marked, meanings as explained in class).
+6. Bible references in standard form with chapter and verse (e.g. "Eph 2:8-9"). For a passage that is central to a section, add a code block with language "verse" containing only the reference.
+7. Finish with "## Summary": 3-5 takeaways. Nothing after the Glossary.
+
+MAKE IT READABLE AND LIVELY:
+- Keep the lecturer's own striking words and images.
+- Keep examples and stories the lecturer told, as a "> [!EXAMPLE]" callout of 2-3 sentences.
+- Keep quotes word for word as "> " quote lines with "— Name" after them.
+- When an idea comes from a book or author, name them: Author, *Book Title*.
+- Use "> [!WARNING]" for a mistake or danger the lecturer warned about; "> [!TIP]" for a practical application; "> [!NOTE]" for useful background.
+- Where a short detail from the material makes a point clearer (a date, a name, what a word means, the context), add it in a few words.
+
+USE THESE ONLY WHEN THE CONTENT CALLS FOR THEM, never as decoration:
+- A heading containing "Steps" with a numbered list, for a real process the lecturer gave.
+- "::: tabs" with "### Name" blocks and a closing ":::", when two or more views are compared.
+- One ```mermaid diagram (flowchart, timeline or mindmap), when a relationship, order or history is easier to see than to read. Put labels with parentheses, colons or quotes in double quotes.
+- <details><summary>Title</summary> ... </details> (blank lines inside) for optional depth.
+- "Q:" and "A:" lines only for questions the lecturer actually asked the class.
+- [[Exact Title]] links to other lessons I mention.
+
+LEAVE OUT:
+- Greetings, attendance, tech trouble, housekeeping, "any questions?", jokes that carry no point.
+- Repeated points (merge them), filler, vague statements, and anything said only to fill time.
+- Tags, a Review section, and questions at the end.
+
+Output only the Markdown, nothing before or after it.
 
 My notes:
 [PASTE YOUR NOTES HERE]

@@ -646,6 +646,9 @@ dialog h2{font:700 15px var(--font-display);margin:0}
 .dlg-b{padding:16px 22px;overflow-y:auto;max-height:calc(100vh - 220px)}
 .dlg-f{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 18px;border-top:1px solid var(--hairline)}
 .dlg-f .sp{flex:1}
+.tplbody{display:flex;flex-direction:column;gap:8px}
+#tplText{width:100%;height:min(62vh,640px);border:0;border-radius:8px;padding:12px 14px;background:var(--bg-editor);box-shadow:inset 0 0 0 .5px var(--hairline-strong);font:12.5px/1.55 var(--font-mono);color:var(--text-main);resize:vertical;tab-size:2}
+.hint.err{color:#d70015}
 .lsep{border-top:1px solid var(--hairline);margin:6px 0 16px}
 .cchelp ol{margin:2px 0 0;padding-left:1.2em;font-size:12.5px;display:flex;flex-direction:column;gap:6px}
 .cccmd{display:flex;gap:6px;align-items:center;margin-top:4px}
@@ -1008,6 +1011,10 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
         <option value="notes">Mostly my notes</option><option value="balanced">Balanced</option><option value="lecture">Mostly the lecture</option><option value="only_notes">Only my notes</option>
       </select><small>How your writing and the lecture are mixed when a note is turned into your MyNotes template.</small></div></div>
       <div class="field"><label for="pBible">Bible translation</label><div class="ctl"><input id="pBible" placeholder="e.g. NIV (optional)" style="max-width:140px"></div></div>
+      <div class="field"><span class="lab">Class note template</span><div class="ctl">
+        <div class="updrow"><span class="updst" id="tplState">Built-in template</span><span class="sp"></span><button class="btn sm" type="button" id="tplEdit">Edit…</button><button class="linkbtn" type="button" id="tplReset" hidden>Use the built-in one</button></div>
+        <small>Your MyNotes template. The class-notes AI follows its “AI Conversion Prompt” section: change that to change how your notes are written.</small>
+      </div></div>
     </section>
     <section data-psec="keys" hidden>
       <p class="khint">Click a shortcut and press the keys you want. <b>Delete</b> clears it, <b>Esc</b> cancels.</p>
@@ -1098,8 +1105,8 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
     </div></div>
     <div class="field"><label for="impNotes">My notes</label><div class="ctl"><textarea id="impNotes" rows="3" placeholder="Optional: notes you took in that class. They're kept and blended into the class notes."></textarea></div></div>
     <div class="field"><span class="lab">Make</span><div class="ctl">
-      <label class="check"><input type="checkbox" id="impSum" checked> Summaries and note helper (points, quotes, books, terms, questions)</label>
       <label class="check"><input type="checkbox" id="impLesson" checked> Class notes in my MyNotes template</label>
+      <label class="check"><input type="checkbox" id="impSum"> Also 10-minute part summaries and note helper items <span style="color:var(--text-tertiary)">(not needed for class notes)</span></label>
     </div></div>
   </div>
   <div class="dlg-b" id="impProg" hidden>
@@ -1107,6 +1114,14 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
     <p class="impmsg" id="impMsg"></p>
   </div>
   <div class="dlg-f"><span class="hint" id="impHint"></span><span class="sp"></span><button class="btn" id="impCancel" type="button">Cancel</button><button class="btn primary" id="impGo" type="button">Import</button></div>
+</dialog>
+<dialog id="tplDlg" aria-labelledby="tplH" style="width:min(860px,calc(100vw - 32px))">
+  <div class="dlg-h"><h2 id="tplH">Class note template</h2><p class="dsub">The class-notes AI follows the <b>AI Conversion Prompt</b> section (the text block after that heading, up to “My notes:”). The rest is your MyNotes guide.</p></div>
+  <div class="dlg-b tplbody">
+    <div class="updrow"><button class="btn sm" type="button" id="tplJump">Go to AI Conversion Prompt</button><span class="sp"></span><span class="hint" id="tplMeta"></span></div>
+    <textarea id="tplText" spellcheck="false" aria-label="Template"></textarea>
+  </div>
+  <div class="dlg-f"><span class="hint" id="tplMsg"></span><span class="sp"></span><button class="btn" type="button" id="tplCancel">Cancel</button><button class="btn primary" type="button" id="tplSave">Save</button></div>
 </dialog>
 <dialog id="confirmDlg" aria-labelledby="confirmH" style="width:min(400px,calc(100vw - 32px))">
   <div class="dlg-h"><h2 id="confirmH">Are you sure?</h2></div>
@@ -1448,7 +1463,7 @@ function openImport(courseId){
   const f = currentFilter(); const cid = courseId || (f.t === 'course' ? f.id : S.meta.course);
   $('impCourse').innerHTML = S.lib.courses.map(c => `<option value="${escAttr(c.id)}"${c.id === cid ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
   $('impDate').value = isoToday(); $('impName').value = ''; $('impPaste').value = ''; $('impNotes').value = '';
-  $('impSum').checked = true; $('impLesson').checked = true;
+  $('impSum').checked = false; $('impLesson').checked = true;
   imp.lec = null; imp.slides = []; imp.kid = null; renderImpFiles();
   $('impForm').hidden = false; $('impProg').hidden = true; $('impGo').hidden = false; $('impGo').disabled = false; $('impGo').textContent = 'Import';
   $('impCancel').textContent = 'Cancel'; $('impHint').textContent = ''; $('impNameEx').textContent = $('impDate').value + '-Notes';
@@ -2965,8 +2980,8 @@ function lessonChecks(){
     [h1 === 1, h1 === 1 ? 'Only one # heading' : `${h1} # headings (should be exactly 1)`],
     [/^## /m.test(body), 'Sections use ##'],
     [terms.length > 0 && !missing.length, terms.length ? (missing.length ? `Not in Glossary: ${missing.join(', ')}` : `${terms.length} key terms, all in the Glossary`) : 'No ==key terms== marked'],
-    [qs >= 3, `${qs} Q:/A: pairs (at least 3)`],
-    [/```mermaid|^::: ?tabs|^##[^\n]*Steps/m.test(body), 'A diagram, tab set or steps list'],
+    [/^>\s*\[!IMPORTANT\]/m.test(body), 'Main idea in an IMPORTANT callout'],
+    [/^##\s+Summary\s*$/m.test(body), 'A short Summary at the end'],
     [/```verse/.test(body) ? true : null, /```verse/.test(body) ? 'Main passage in a verse block' : 'No verse block (fine without a Bible passage)'],
   ];
 }
@@ -3143,6 +3158,7 @@ async function openPrefs(which){
   removeGh = false; $('ghToken').value = ''; $('pAutoUpd').checked = c.auto_update_check !== false;
   const hasGh = c.has_key && c.has_key.github; $('ghToken').placeholder = hasGh ? 'Token saved (type to replace)' : 'GitHub token with read access'; $('ghTokenRm').hidden = !hasGh;
   renderUpdate();
+  tplStatus();
   $('lesson_ai').value = c.lesson_ai || 'same'; $('lesson_model').value = c.lesson_model || 'sonnet'; syncLessonAi();
   if (!prefs.open) prefs.showModal();
   const devs = await fetch('/devices').then(r => r.json()).catch(() => []);
@@ -3162,6 +3178,35 @@ function settingsBody(){
   if (removeGh) b.remove_github_token = true;
   return b;
 }
+/* class note template */
+async function tplStatus(){
+  const i = await fetch('/template').then(r => r.json()).catch(() => null); if (!i) return;
+  $('tplState').textContent = i.custom ? 'Your edited template' : 'Built-in template (readable, lively notes)';
+  $('tplReset').hidden = !i.custom;
+}
+$('tplEdit').onclick = async () => {
+  const text = await fetch('/template.md').then(r => r.text()).catch(() => '');
+  $('tplText').value = text; $('tplMsg').className = 'hint'; $('tplMsg').textContent = '';
+  $('tplMeta').textContent = `${text.split('\n').length} lines`;
+  $('tplDlg').showModal(); $('tplText').focus(); $('tplText').setSelectionRange(0, 0); $('tplText').scrollTop = 0;
+};
+$('tplJump').onclick = () => {
+  const t = $('tplText'), i = t.value.search(/^#{1,3}\s*AI Conversion Prompt/m); if (i < 0) return toast('No “AI Conversion Prompt” heading in this template.');
+  t.focus(); t.setSelectionRange(i, i);
+  const before = t.value.slice(0, i).split('\n').length - 1; t.scrollTop = Math.max(0, before * parseFloat(getComputedStyle(t).lineHeight) - 20);
+};
+$('tplCancel').onclick = () => $('tplDlg').close();
+$('tplSave').onclick = async () => {
+  const r = await fetch('/template/upload', {method: 'POST', body: new Blob([$('tplText').value], {type: 'text/markdown'})}).then(x => x.json()).catch(() => ({ok: false, error: 'Couldn\'t save.'}));
+  if (!r.ok){ $('tplMsg').className = 'hint err'; $('tplMsg').textContent = r.error; return; }
+  $('tplDlg').close(); tplStatus();
+  toast(r.warning || 'Template saved. Your next class notes follow it.', r.warning ? 8000 : 3000);
+};
+$('tplReset').onclick = async () => {
+  if (!await confirmBox('Use the built-in template?', 'Your edited template is removed and class notes follow the built-in readable template again. Lessons you already made don\'t change.', 'Use built-in')) return;
+  await post('/template/reset'); tplStatus(); toast('Using the built-in template.');
+};
+
 /* class notes AI: Claude Code (the student's plan) */
 let ccInfo = null;
 function syncLessonAi(){

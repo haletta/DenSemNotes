@@ -344,7 +344,9 @@ class Importer:
         if job.get("running"):
             return {"ok": False, "error": "This class is already being imported."}
         job["running"] = True
-        job["opts"] = {"summary": data.get("summary", True) is not False, "notes": data.get("notes", True) is not False}
+        job["opts"] = {"summary": data.get("summary") is True, "notes": data.get("notes", True) is not False}
+        if not job["opts"]["summary"]:  # straight to the class notes: no part summaries or note-helper picks
+            job["steps"] = [st for st in job["steps"] if st["id"] not in ("helper", "summary")]
         threading.Thread(target=self._run, args=(kid,), daemon=True).start()
         return {"ok": True}
 
