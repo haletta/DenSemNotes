@@ -340,6 +340,11 @@ body.reading .column{padding-top:40px}
 .reader .lmeta{font:500 13px/1.5 var(--font-sans);color:var(--text-secondary);margin:0 0 2.2em;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
 .reader .rtags{display:inline-flex;gap:8px;flex-wrap:wrap}
 .reader .rtag{color:var(--accent-color)}
+.reader [data-line].has-sl{position:relative}
+.reader .rsl{position:absolute;left:-52px;top:.15em;font:700 10px/1 var(--font-mono);padding:4px 5px;border-radius:5px;border:0;background:var(--accent-soft);color:var(--accent-color);cursor:pointer;opacity:.75;font-style:normal;letter-spacing:0;text-transform:none}
+.reader .rsl:hover,.reader .rsl.on{opacity:1;background:var(--accent-color);color:#fff}
+.reader li.has-sl > .rsl{left:-76px}
+@container (max-width:620px){ .reader .rsl{position:static;display:inline-block;margin-right:6px;vertical-align:.15em} }
 .reader h2{font:650 1.38em/1.3 var(--font-display);letter-spacing:-.012em;margin:1.9em 0 .7em}
 .reader h3{font:600 1.1em/1.35 var(--font-display);margin:1.5em 0 .5em}
 .reader h4{font:600 1em var(--font-display);margin:1.3em 0 .4em;color:var(--text-secondary)}
@@ -918,6 +923,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
         <button class="btn sm" id="uploadBtn"><svg class="i"><use href="#i-up"/></svg>Upload</button>
         <input type="file" id="fileIn" multiple hidden accept=".pdf,.ppt,.pptx,.pps,.ppsx,.key,.odp,.doc,.docx,.pages,.rtf,.odt,.txt,.md,.html,.png,.jpg,.jpeg,.heic,.gif,.webp,.tif,.tiff">
         <label class="toggle" title="Jump to the slide the lecturer seems to be on"><input type="checkbox" id="followChk"> Follow</label>
+        <label class="toggle" title="While you scroll your notes, show the slide for the part at the top"><input type="checkbox" id="followNotesChk"> Follow my notes</label>
         <button class="iconbtn sm" id="docMore" aria-label="Document options"><svg class="i"><use href="#i-more"/></svg></button>
       </div>
       <div class="slhint" id="slHint" hidden><span id="slHintText"></span><button class="btn sm" id="slHintGo">Go</button><button class="linkbtn" id="slHintNo" style="color:inherit">Dismiss</button></div>
@@ -1500,6 +1506,69 @@ es.addEventListener('import', e => {
 $('importDlg').addEventListener('close', () => { if (!imp.busy) delete $('impGo').dataset.open; });
 $('listImport').onclick = () => openImport();
 
+/* ---------- notes ⇄ slides while studying ---------- */
+const slKey = sl => sl ? sl.doc + '#' + sl.page : '';
+function readerSlideTags(r){
+  // a slide tag where a new slide starts: on headings and on the first line that moves to another slide
+  let last = '';
+  r.querySelectorAll('[data-line]').forEach(el => {
+    if (el.closest('.rsl') || el.parentElement.closest('[data-line].has-sl') && el.tagName !== 'LI') return;
+    const l = L[+el.dataset.line]; const sl = l && l.sl; if (!sl || !slLabel(sl)) return;
+    const k = slKey(sl); const head = /^H[1-4]$/.test(el.tagName);
+    if (k === last && !head) return;
+    if (k === last && head && el.previousElementSibling && el.previousElementSibling.querySelector && el.previousElementSibling.querySelector('.rsl')) return;
+    last = k;
+    const b = document.createElement('button'); b.className = 'rsl'; b.type = 'button'; b.textContent = slLabel(sl);
+    b.title = 'Show ' + slideName(sl); b.dataset.doc = sl.doc; b.dataset.page = sl.page;
+    el.classList.add('has-sl'); el.prepend(b);
+  });
+}
+let followHold = 0;   // after you pick a slide yourself, scrolling takes over again only once you scroll on
+$('reader').addEventListener('click', e => { const b = e.target.closest('.rsl'); if (!b) return; e.preventDefault(); e.stopPropagation();
+  followHold = Date.now() + 1200; lastFollow = b.dataset.doc + '#' + b.dataset.page; openSlide(b.dataset.doc, +b.dataset.page);
+  $('reader').querySelectorAll('.rsl.on').forEach(x => x.classList.remove('on')); b.classList.add('on'); });
+function slideAtTop(){
+  // the slide for the part of the note at the top of the screen
+  const wrap = $('edwrap'), top = wrap.getBoundingClientRect().top + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fmt-h')) || 0) + 40;
+  let line = -1;
+  if (view === 'read'){
+    for (const el of $('reader').querySelectorAll('[data-line]')){ const rc = el.getBoundingClientRect(); if (rc.bottom > top){ line = +el.dataset.line; break; } }
+  } else {
+    for (const el of ed.children){ const rc = el.getBoundingClientRect(); if (rc.bottom > top){ line = [...ed.children].indexOf(el); break; } }
+  }
+  if (line < 0) return null;
+  for (let i = line; i >= 0; i--){ const sl = L[i] && L[i].sl; if (sl) return sl; if (L[i] && /^##\s/.test(L[i].text) && i < line) break; }
+  for (let i = line + 1; i < Math.min(L.length, line + 6); i++){ const sl = L[i] && L[i].sl; if (sl) return sl; }
+  return null;
+}
+let followRaf = 0, lastFollow = '';
+function followNotes(){
+  if (ui().followNotes === false || S.recording || tab !== 'sl' || $('insp').hidden || Date.now() < followHold) return;
+  const sl = slideAtTop(); if (!sl || !readyDocs().some(d => d.id === sl.doc)) return;
+  const v = currentView(), k = slKey(sl);
+  if (k === lastFollow && v && slKey(v) === k) return;
+  lastFollow = k;
+  if (!v || slKey(v) !== k) goPage(sl.doc, sl.page);
+  $('reader').querySelectorAll('.rsl.on').forEach(b => b.classList.remove('on'));
+  const tag = [...$('reader').querySelectorAll('.rsl')].find(b => b.dataset.doc === sl.doc && +b.dataset.page === sl.page);
+  if (tag) tag.classList.add('on');
+}
+$('edwrap').addEventListener('scroll', () => { cancelAnimationFrame(followRaf); followRaf = requestAnimationFrame(followNotes); }, {passive: true});
+$('followNotesChk').onchange = e => { savePrefs({followNotes: e.target.checked}); lastFollow = ''; followNotes(); };
+let linkAsked = new Set();
+function maybeLinkLesson(){
+  // lessons made before slide links (or slides added later): tie their sections to the slides once
+  if (!S.cls.formatted || !readyDocs().length || linkAsked.has(S.kid)) return;
+  if ((S.cls.formatted && S.cls.formatted.linked) || L.some(l => l.sl)) return;
+  linkAsked.add(S.kid); post('/lesson/link', {kid: S.kid});
+}
+es.addEventListener('lines', e => {
+  const d = JSON.parse(e.data); if (d.kid !== S.kid || !Array.isArray(d.lines)) return;
+  let n = 0;
+  d.lines.forEach((x, i) => { if (L[i] && L[i].text === x.text && x.sl && !L[i].sl){ L[i].sl = x.sl; n++; } });
+  if (n){ render(); if (view === 'read') readerSoon(); toast(`Linked to the slides`, 1800); }
+});
+
 /* drag a class card onto a course in the sidebar */
 let dragKid = null;
 $('cards').addEventListener('dragstart', e => { const el = e.target.closest('.card'); if (!el) return;
@@ -1832,7 +1901,7 @@ ed.addEventListener('mousedown', e => {
   if (cb){ const i = lineOf(cb); if (i >= 0){ e.preventDefault(); snap(true); L[i].text = L[i].text.replace(/- \[([ xX])\] /, (m0, v) => v === ' ' ? '- [x] ' : '- [ ] '); commit(); } return; }
   const ln = e.target.closest('.ln');
   if (ln && ln.dataset.sl){ const r = ln.getBoundingClientRect(); const x = e.clientX - r.left;
-    if (x >= -44 && x <= -4){ e.preventDefault(); const i = lineOf(ln); const sl = L[i] && L[i].sl; if (sl) openSlide(sl.doc, sl.page); } }
+    if (x >= -44 && x <= -4){ e.preventDefault(); const i = lineOf(ln); const sl = L[i] && L[i].sl; if (sl){ followHold = Date.now() + 1200; lastFollow = sl.doc + '#' + sl.page; openSlide(sl.doc, sl.page); } } }
 });
 /* spelling corrected while typing */
 function inFence(line){ let f = false; for (let i = 0; i < line; i++) if (/^\s*```/.test(L[i].text)) f = !f; return f; }
@@ -2250,7 +2319,7 @@ function renderSlides(){
   sel.innerHTML = '';
   docs.forEach(d => { const o = new Option(d.name + (d.status === 'converting' ? ' (converting…)' : d.status === 'error' ? ' (could not open)' : d.pages ? ` · ${d.pages} p` : ''), d.id); sel.add(o); });
   const cur = docs.find(d => d.id === (v && v.doc)) || docs.find(d => d.status !== 'ready') && docs[docs.length - 1] || docs[0];
-  sel.hidden = !docs.length; $('docMore').hidden = !docs.length; $('followChk').parentNode.hidden = !readyDocs().length;
+  sel.hidden = !docs.length; $('docMore').hidden = !docs.length; $('followChk').parentNode.hidden = !readyDocs().length; $('followNotesChk').parentNode.hidden = !readyDocs().length;
   $('dropzone').hidden = !!docs.length; $('slViewer').hidden = !docs.length;
   if (!cur) return;
   sel.value = (v && docs.some(d => d.id === v.doc)) ? v.doc : cur.id;
@@ -2291,14 +2360,20 @@ function renderSlides(){
 function renderOnSlide(){
   const box = $('onSlide'); const v = currentView(); if (!box || tab !== 'sl'){ return; }
   box.innerHTML = ''; if (!v) return;
-  const mine = []; L.forEach((l, i) => { if (l.sl && l.sl.doc === v.doc && l.sl.page === v.page && l.text.trim()) mine.push([l, i]); });
+  const mine = []; let fence = false;
+  L.forEach((l, i) => {
+    if (/^\s*```/.test(l.text)){ fence = !fence; return; }
+    if (fence || !l.text.trim() || /^\s*(<\/?[a-z]|:::|-{3,}\s*$|\|)/i.test(l.text) || /^\s*>\s*\[!\w+\]\s*$/.test(l.text)) return;   // markup, not words
+    if (l.sl && l.sl.doc === v.doc && l.sl.page === v.page) mine.push([l, i]);
+  });
   const pts = (S.cls.points || []).filter(p => p.sl && p.sl.doc === v.doc && p.sl.page === v.page);
   const h = document.createElement('h3'); h.textContent = mine.length || pts.length ? 'On this slide' : 'No notes on this slide yet'; box.append(h);
   const ul = document.createElement('ul');
   mine.forEach(([l, i]) => { const li = document.createElement('li'); const b = document.createElement('button');
-    b.innerHTML = '<span class="who">Mine</span>' + esc(l.text.replace(PREFIX, '').replace(/==|\*\*/g, '')); b.onclick = () => focusLine(i); li.append(b); ul.append(li); });
+    b.innerHTML = `<span class="who">${S.cls.formatted ? 'Note' : 'Mine'}</span>` + esc(l.text.replace(PREFIX, '').replace(/^\s*>\s*(\[!\w+\]\s*)?/, '').replace(/==|\*\*|\*|`/g, ''));
+    b.onclick = () => { if (view === 'read'){ const el = $('reader').querySelector(`[data-line="${i}"]`); if (el){ followHold = Date.now() + 1500; el.scrollIntoView({block: 'start', behavior: 'smooth'}); flashEl(el); return; } } focusLine(i); }; li.append(b); ul.append(li); });
   pts.forEach(p => { const li = document.createElement('li'); const b = document.createElement('button');
-    b.innerHTML = `<span class="who">${p.kind === 'question' ? 'Asked' : 'Lecture'}</span>` + esc(p.title); b.onclick = () => { showTab('sum'); flashEl($('blocks').querySelector(`li[data-id="${p.id}"]`)); }; li.append(b); ul.append(li); });
+    b.innerHTML = `<span class="who">${p.kind === 'question' ? 'Asked' : 'Lecture'}</span>` + esc(p.title); b.onclick = () => { showTab('sum'); flashEl($('aids').querySelector(`li[data-id="${p.id}"]`) || $('blocks').querySelector(`li[data-id="${p.id}"]`)); }; li.append(b); ul.append(li); });
   box.append(ul);
 }
 function goPage(did, page){
@@ -2585,6 +2660,7 @@ function renderReader(){
   if (!ctx.titled) html = `<h1 class="ltitle">${esc(fm.title || (k && k.name) || 'Lesson')}</h1>${ctx.metaHTML}` + html;
   const r = $('reader'); r.innerHTML = html;
   r.querySelectorAll('.diagram').forEach(drawDiagram);
+  readerSlideTags(r);
 }
 let mermaidReady = null;
 function loadMermaid(){
@@ -2694,6 +2770,7 @@ function setTab(which){
 }
 function showTab(which){
   if (!which) return;
+  if (which === 'sl' && Date.now() >= followHold){ lastFollow = ''; setTimeout(followNotes, 80); }
   if (ui().focus) savePrefs({focus: false});
   if (ui().insp !== which) savePrefs({insp: which});
   setTab(which); applyLayout();
@@ -3106,6 +3183,7 @@ $('setTest').onclick = async () => {
 function renderAll(){
   applyAppearance(); applyLayout(); applyZoom(); applyDiscreet(); refreshKeyHints(); renderLibrary(); renderLive(true); renderAsks(); renderTx(); renderTopic(); renderRec(); renderStatus(); renderSlides(); renderBanner();
   $('followChk').checked = !!ui().follow;
+  $('followNotesChk').checked = ui().followNotes !== false;
   document.querySelectorAll('.perN').forEach(x => x.textContent = parseInt(S.cfg.period, 10) || 10);
 }
 es.addEventListener('state', async e => {
@@ -3115,6 +3193,7 @@ es.addEventListener('state', async e => {
   S = d;
   if (d.update){ UPD = d.update; renderUpdate(); }
   if (switching || !dirty){ edKid = S.kid; loadEditor(S.cls.lines); }
+  if (switching){ lastFollow = ''; setTimeout(maybeLinkLesson, 400); }
   if (switching || !seenItems.size){ seenItems = new Set((S.cls.points || []).map(p => p.id)); seenBlocks = new Set((S.cls.blocks || []).map(b => b.id)); lastOverall = JSON.stringify(S.cls.overall || null); }
   if (switching){ $('recap').hidden = true; $('slHint').hidden = true; $('thumbs').dataset.doc = ''; setBusy(null); $('edwrap').scrollTop = 0; view = S.cls.formatted ? 'read' : 'edit'; }
   renderAll(); setView(view);
@@ -3150,6 +3229,7 @@ es.addEventListener('docs', e => {
   S.cls.docs = d.docs;
   if (!S.cls.view || !S.cls.docs.some(x => x.id === S.cls.view.doc)) S.cls.view = d.view;
   renderSlides(); render(); updateFoot(); renderTitle();
+  if (readyDocs().some(x => !wasReady.has(x.id)) && S.cls.formatted){ linkAsked.delete(S.kid); if (S.cls.formatted) S.cls.formatted.linked = 0; setTimeout(maybeLinkLesson, 300); }
   for (const x of readyDocs()) if (!wasReady.has(x.id)){ toast(`${x.name} is ready (${x.pages} page${x.pages === 1 ? '' : 's'}${x.method === 'text only' ? ', text only' : x.method === 'DenSem drawing' ? ', drawn without Keynote' : ''})`); goPage(x.id, 1); }
 });
 es.addEventListener('slide_hint', e => {

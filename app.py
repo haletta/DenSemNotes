@@ -44,7 +44,7 @@ UI_DEFAULTS = {
     "keys": {},   # shortcut id -> combo, only the ones I changed
     "open": {},   # course id -> expanded in the sidebar
     "aidFilter": "all", "liveSplit": 0.5,
-    "discreet": False, "zoomEdit": 1, "zoomRead": 1,
+    "discreet": False, "zoomEdit": 1, "zoomRead": 1, "followNotes": True,
 }
 DEFAULTS = dict(
     course="",
@@ -151,9 +151,14 @@ class Hub:
         if self.lib.set_meta(kid, meta):
             self.emit("libmeta", {"id": kid, **meta, "updated": self.lib.klass(kid).get("updated")})
 
-    def replace_with_lesson(self, kid, md, note, blend):
+    def page_texts(self, kid, did):
+        return slides.page_texts(kid, did)
+
+    def replace_with_lesson(self, kid, md, note, blend, links=None):
         """Turn my notes into the MyNotes lesson, keeping the original as a version I can restore."""
-        lines = [{"text": x, "t": None, "sl": None} for x in md.rstrip("\n").split("\n")]
+        texts = md.rstrip("\n").split("\n")
+        links = links if links and len(links) == len(texts) else [None] * len(texts)
+        lines = [{"text": x, "t": None, "sl": sl} for x, sl in zip(texts, links)]
 
         def fn(s):
             s.setdefault("versions", []).append({"at": time.time(), "label": "Before formatting", "lines": s["lines"]})
@@ -489,6 +494,32 @@ class App:
         except Exception as e:
             traceback.print_exc()
             self._set_doc(kid, did, status="error", error=str(e)[:300], note="")
+
+    def link_lesson(self, data):
+        """Tie an existing lesson's sections to the slides (for lessons made before slide links, or after
+        slides are added)."""
+        from lesson import slide_links
+
+        kid = data.get("kid") or self.hub.kid
+        s = self.hub.class_copy(kid)
+        if not s.get("lines"):
+            return {"ok": False, "error": "There's no note to link."}
+        links = slide_links([l["text"] for l in s["lines"]], s, lambda did: self.hub.page_texts(kid, did))
+        n = sum(1 for x in links if x)
+
+        def fn(c):
+            if len(c["lines"]) != len(links):
+                return
+            for l, sl in zip(c["lines"], links):
+                if sl and not l.get("sl"):
+                    l["sl"] = sl
+            if isinstance(c.get("formatted"), dict):
+                c["formatted"]["linked"] = 1
+
+        self.hub.update_class(kid, fn)
+        if kid == self.hub.kid:
+            self.hub.emit("lines", {"kid": kid, "lines": self.hub.s["lines"]})
+        return {"ok": True, "linked": n}
 
     def reconvert_doc(self, data):
         kid, did = data.get("kid"), data.get("doc")
@@ -894,6 +925,7 @@ def make_handler(app):
                 "/import/text": lambda: app.importer.lecture_text(data.get("kid"), data.get("text", "")),
                 "/import/run": lambda: app.importer.run(data),
                 "/doc/reconvert": lambda: app.reconvert_doc(data),
+                "/lesson/link": lambda: app.link_lesson(data),
                 "/spell": lambda: app.spell_check(data),
                 "/spell/learn": lambda: app.spell_learn(data),
                 "/spell/word": lambda: app.spell_word(data),

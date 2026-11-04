@@ -155,9 +155,10 @@ def build_prompt(s, opts, cap_words, slide_text):
         parts.append(f"(C) LECTURE TRANSCRIPT from speech recognition{note}. Words may be mis-heard: fix obvious "
                      "errors from context.\n" + chunk_text(segs))
     used = []
-    for _, _, sl in wrote + points:
+    for _, _, sl in wrote + points + [(x["t"], x["text"], x.get("sl")) for x in s["segs"]]:
         if sl and (sl["doc"], sl["page"]) not in used:
             used.append((sl["doc"], sl["page"]))
+    used.sort(key=lambda dp: ([d["id"] for d in docs].index(dp[0]) if dp[0] in [d["id"] for d in docs] else 99, dp[1]))
     if used:
         budget, blocks = 2500, []
         for doc, page in used:
@@ -293,6 +294,111 @@ def _basic_from_blocks(s, opts, blocks):
     return clean_lesson("\n".join(out), {**opts, "title": title})
 
 
+# ---------------------------------------------------------------- which slide each part of the lesson covers
+NO_SLIDE_SECTIONS = ("summary", "review", "glossary", "key terms", "questions", "self-check", "references")
+
+
+def slide_links(lines, s, page_texts):
+    """For each lesson line, the slide it comes from (or None), matched by meaning against what is already tied to
+    slides: the student's linked note lines, the lecture transcript's slide timeline, the note helper, and the
+    slides' own text. A section's lines share its slide unless a line clearly belongs to another."""
+    from words import TfIdf, content_words
+
+    docs = [d for d in s.get("docs", []) if d.get("status") == "ready"]
+    if not docs:
+        return [None] * len(lines)
+    texts, labels = [], []
+
+    def add(text, sl):
+        if sl and text and len(content_words(text)) >= 3:
+            texts.append(text)
+            labels.append((sl["doc"], int(sl["page"])))
+
+    for d in docs:
+        for i, t in enumerate(page_texts(d["id"]) or [], 1):
+            add(t, {"doc": d["id"], "page": i})
+    for l in s.get("lines", []):
+        add(l.get("text", ""), l.get("sl"))
+    segs = s.get("segs", [])
+    for i, x in enumerate(segs):  # transcript pieces with a little context
+        add(" ".join(y["text"] for y in segs[max(0, i - 1):i + 2]), x.get("sl"))
+    for p in s.get("points", []):
+        add(p.get("title", "") + " " + p.get("detail", ""), p.get("sl"))
+    if not texts:
+        return [None] * len(lines)
+    idx = TfIdf(texts)
+
+    def best(text):
+        if len(content_words(text)) < 2:
+            return None, 0.0, {}
+        scores = {}
+        for lab, sc in zip(labels, idx.rank(text)):
+            scores[lab] = max(scores.get(lab, 0.0), sc)
+        lab, sc = max(scores.items(), key=lambda kv: kv[1])
+        return lab, sc, scores
+
+    out = [None] * len(lines)
+    fm_end, fence, section, skip = -1, False, "", False
+    if lines and lines[0].strip() == "---":
+        fm_end = next((i for i in range(1, min(len(lines), 40)) if lines[i].strip() == "---"), -1)
+    # first pass: lines that clearly match a slide
+    raw = [None] * len(lines)
+    for i, x in enumerate(lines):
+        if i <= fm_end:
+            continue
+        if x.strip().startswith("```"):
+            fence = not fence
+            continue
+        if fence or not x.strip():
+            continue
+        m = re.match(r"^(#{1,3})\s+(.*)", x)
+        if m and len(m.group(1)) == 2:
+            section = m.group(2).strip().lower()
+            skip = any(section.startswith(k) for k in NO_SLIDE_SECTIONS)
+        if skip or re.match(r"^#\s", x):
+            continue
+        clean = re.sub(r"^\s*(#{1,6}|>\s*\[!\w+\]|>|[-*+]\s(\[[ xX]\]\s)?|\d+[.)]|[QA]:)\s*", "", x)
+        clean = re.sub(r"==|\*\*|\*|`|\[\[|\]\]", "", clean)
+        lab, sc, allsc = best(clean)
+        if lab and sc >= 0.22:
+            raw[i] = (lab, sc, allsc)
+    # second pass: each ## section takes the slide most of its lines point to; strong lines keep their own
+    fence, i = False, fm_end + 1
+    while i < len(lines):
+        m = re.match(r"^##\s+(.*)", lines[i])
+        if not m:
+            i += 1
+            continue
+        j = i + 1
+        while j < len(lines) and not re.match(r"^#{1,2}\s", lines[j]):
+            j += 1
+        name = m.group(1).strip().lower()
+        if not any(name.startswith(k) for k in NO_SLIDE_SECTIONS):
+            votes = {}
+            for k in range(i, j):
+                if raw[k]:
+                    votes[raw[k][0]] = votes.get(raw[k][0], 0) + raw[k][1]
+            if votes:
+                main = max(votes.items(), key=lambda kv: kv[1])[0]
+                for k in range(i, j):
+                    if not lines[k].strip():
+                        continue
+                    lab = main
+                    if raw[k] and raw[k][0] != main:
+                        own, on_main = raw[k][1], raw[k][2].get(main, 0.0)
+                        if own >= 0.45 and own >= on_main * 1.8:
+                            lab = raw[k][0]  # this line is clearly about another slide
+                    out[k] = {"doc": lab[0], "page": lab[1]}
+        i = j
+    # lines before the first section (title callout) only when they clearly match
+    for k in range(fm_end + 1, len(lines)):
+        if re.match(r"^##\s", lines[k]):
+            break
+        if raw[k] and raw[k][1] >= 0.45:
+            out[k] = {"doc": raw[k][0][0], "page": raw[k][0][1]}
+    return out
+
+
 class LessonBuilder:
     def __init__(self, hub):
         self.hub = hub
@@ -333,7 +439,8 @@ class LessonBuilder:
                 note = note or ("Basic version (no AI selected). Choose an AI in Preferences for a full lesson with "
                                 "questions, glossary and diagrams.")
             if replace:
-                hub.replace_with_lesson(kid, md, note, opts.get("blend"))
+                links = slide_links(md.rstrip("\n").split("\n"), s, lambda did: hub.page_texts(kid, did))
+                hub.replace_with_lesson(kid, md, note, opts.get("blend"), links)
                 if getattr(hub, "lesson_hook", None):
                     hub.lesson_hook(kid, True, note)
             else:
