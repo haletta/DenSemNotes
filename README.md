@@ -148,7 +148,9 @@ Change any of them in **Preferences › Shortcuts**: click a shortcut and press 
   - **Claude Code: my Claude plan, no API key.** Uses the Claude subscription you already have (Pro, Max…); its use counts toward your plan's normal limits. One-time setup: open Terminal, paste `curl -fsSL https://claude.ai/install.sh | bash`, then open a new Terminal window, type `claude`, press Return and sign in with your Claude account. Back in Preferences press **Check again**, then **Test**. Choose **Sonnet** (recommended), **Opus** (most careful) or **Haiku** (fastest).
   - **Claude with my API key**, or **The same AI as above**.
 
-The class-notes AI reads the lecture, your notes and the text of every slide deck and PDF in the class, so you can also make class notes from slides and handouts alone (import them with no script). If the AI is unavailable, the app keeps going with basic summaries and a basic lesson.
+The class-notes AI always gets the **full transcript** and the text of **every slide deck, PDF and document** in the class, for live and imported classes alike, along with your own notes (and the part summaries when a class has them). Nothing is cut down to fit. You can also make class notes from slides and handouts alone (import them with no script).
+
+A whole lecture with its slides is a big job: Claude Code and Gemini handle it easily. A local Ollama model gets a larger memory window for it (slower, and it uses more of your Mac's memory), and Groq's free tier may be too small; the app tells you if so. If the AI is unavailable, the app keeps going with basic summaries and a basic lesson.
 
 ## Updates
 

@@ -70,7 +70,9 @@ def ask_ai(cfg, prompt, max_tokens=700, json_mode=False, long=False):
                 "messages": messages,
                 "stream": False,
                 "keep_alive": "30m",
-                "options": {"temperature": 0.3, "num_ctx": 32768 if long else 8192, "num_predict": max_tokens * 2},
+                # big jobs get a context window sized to the whole prompt (a full lecture and its slides)
+                "options": {"temperature": 0.3, "num_predict": max_tokens * 2,
+                            "num_ctx": min(131072, max(32768, len(prompt) // 3 + max_tokens * 2 + 2048)) if long else 8192},
             }
             if json_mode:
                 body["format"] = "json"
@@ -104,6 +106,10 @@ def ask_ai(cfg, prompt, max_tokens=700, json_mode=False, long=False):
             msg = None
         if e.code in (401, 403):
             raise RuntimeError(f"{name} rejected the API key. Check it in Preferences.")
+        if e.code == 413 or (e.code == 400 and msg and ("too large" in str(msg).lower() or "context" in str(msg).lower()
+                                                        or "tokens" in str(msg).lower())):
+            raise RuntimeError(f"The whole lecture and slides are too long for {name}'s free tier. For class notes, choose "
+                               "Claude Code or Gemini in Preferences › AI › Class notes.")
         if e.code == 429:
             raise RuntimeError(f"{name} free limit reached for now. Using offline summaries until it resets.")
         if e.code == 404 and p == "ollama":

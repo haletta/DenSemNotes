@@ -32,6 +32,7 @@ LESSON_RULES = """FORMAT RULES (MyNotes Markdown), follow exactly:
 9. Keep any [[Lesson Title]] links the student wrote.
 10. Output only the Markdown file. No code fence around it, nothing before or after it."""
 
+FULL = 10 ** 7  # no word limit: the full transcript and all resources go to the class-notes AI
 CAPS = {"ollama": 6000, "groq": 3500, "gemini": 40000, "claude": 40000}
 
 # ---------------------------------------------------------------- the student's MyNotes template
@@ -471,11 +472,9 @@ class LessonBuilder:
                 hub.emit("lesson", {"state": "working", "kid": kid,
                                     "text": f"{name} is writing the lesson. This can take a minute or two…"})
                 try:
-                    big = lesson_budget(hub.cfg) >= 20000
-                    prompt = build_prompt(s, opts, lesson_budget(hub.cfg), lambda sl: hub.slide_text(kid, sl),
-                                          doc_pages if (big or not (s["segs"] or has_notes) or opts.get("source") == "material")
-                                          else None,
-                                          30000 if big else 2500)
+                    # class notes always get the whole transcript and every slide deck and document, for live and
+                    # imported classes alike, whichever AI writes them
+                    prompt = build_prompt(s, opts, FULL, lambda sl: hub.slide_text(kid, sl), doc_pages, FULL)
                     md = clean_lesson(ask_lesson(hub.cfg, prompt, 4000), opts)
                     if md.count("\n") < 8:
                         raise RuntimeError("The AI's answer was too short to be a lesson.")
