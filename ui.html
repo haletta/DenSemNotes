@@ -3218,7 +3218,23 @@ $('updCheck').onclick = () => updPost('/update/check');
 $('updGo').onclick = () => updPost('/update/install');
 $('updRestart').onclick = () => updPost('/update/restart');
 $('updBack').onclick = async () => { if (await confirmBox('Go back to the previous version?', 'The version you had before the last update is put back. Restart the app afterwards. Your classes and notes are not touched.', 'Go back')) updPost('/update/restore'); };
-$('updBtn').onclick = () => { openPrefs('general'); setTimeout(() => $('updField').scrollIntoView({block: 'center'}), 60); };
+function showUpdates(){ openPrefs('general'); setTimeout(() => $('updField').scrollIntoView({block: 'center'}), 60); }
+$('updBtn').onclick = showUpdates;
+$('setBtn').addEventListener('contextmenu', e => { e.preventDefault();
+  openMenu($('setBtn'), [{label: 'Preferences…', kbd: scLabel('prefs'), act: () => openPrefs()}, {label: 'Check for updates…', kbd: scLabel('checkUpdates'), act: checkUpdatesNow},
+    (UPD && UPD.can_restore) ? {label: 'Go back to the previous version…', act: showUpdates} : null].filter(Boolean), {x: e.clientX, y: e.clientY}); });
+async function checkUpdatesNow(){
+  // Help › Check for Updates…: answer right away, and open Update now when there is something new
+  toast('Checking GitHub for updates…', 1500);
+  const r = await post('/update/check');
+  if (r && r.state){ UPD = r; renderUpdate(); }
+  if (!r || r.ok === false) return toast((r && r.error) || 'Couldn\'t check for updates.', 5000);
+  if (r.error) return toast(r.error, 6000);
+  if (r.available) return showUpdates();
+  if (r.state === 'ready') return showUpdates();
+  toast(`You have the newest version of DenSemNotes${r.current ? ' (' + shortSha(r.current) + ')' : ''}.`, 3500);
+}
+window.DenSem = {checkUpdates: () => checkUpdatesNow(), prefs: () => openPrefs()};
 es.addEventListener('update', e => { UPD = JSON.parse(e.data); renderUpdate(); });
 $('setSave').onclick = async () => { const r = await post('/settings', settingsBody()); prefs.close(); if (!r.ok) flash(r.error); };
 $('setTest').onclick = async () => {
@@ -3349,6 +3365,7 @@ const SHORTCUTS = [
   ['nextClass', 'General', 'Next class in the list', 'Alt+Mod+↓', () => stepClass(1)],
   ['prevClass', 'General', 'Previous class in the list', 'Alt+Mod+↑', () => stepClass(-1)],
   ['prefs', 'General', 'Preferences', 'Mod+,', () => openPrefs()],
+  ['checkUpdates', 'General', 'Check for updates', '', () => checkUpdatesNow()],
   ['rec', 'Lecture', 'Record / pause', 'Mod+.', () => toggleRec()],
   ['miss', 'Lecture', 'What did I miss?', 'Mod+K', () => catchUp()],
   ['live', 'Lecture', 'Live notes', 'Mod+1', () => toggleInspector('sum')],

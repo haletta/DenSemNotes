@@ -1051,7 +1051,26 @@ def main():
                 api.window = webview.create_window(APP_NAME, url + "?shell=mac", **kw)
         else:
             api.window = webview.create_window(APP_NAME, url, **kw)
-        webview.start()
+        menu = None
+        try:  # a Help menu in the Mac menu bar: Check for Updates…, the GitHub page
+            import webview.menu as wm
+
+            def js(code):
+                return lambda: api.window and api.window.evaluate_js(code)
+
+            menu = [wm.Menu("Help", [
+                wm.MenuAction("Check for Updates…", js("window.DenSem && window.DenSem.checkUpdates()")),
+                wm.MenuAction("Preferences…", js("window.DenSem && window.DenSem.prefs()")),
+                wm.MenuSeparator(),
+                wm.MenuAction(f"{APP_NAME} on GitHub", lambda: webbrowser.open(
+                    "https://github.com/" + (__import__("updater").source()[0] or "haletta/DenSemNotes"))),
+            ])]
+        except Exception:
+            menu = None
+        try:
+            webview.start(menu=menu) if menu else webview.start()
+        except TypeError:  # older pywebview without menus
+            webview.start()
     except ImportError:
         print(f"{APP_NAME} is running at {url}  (press Ctrl+C to quit)", flush=True)
         webbrowser.open(url)
