@@ -1,6 +1,6 @@
 """Draw PowerPoint slides as pictures without Keynote or LibreOffice.
 
-Used when Keynote can't convert a deck (for example when macOS hasn't allowed DenSem Class to use Keynote).
+Used when Keynote can't convert a deck (for example when macOS hasn't allowed DenSemNotes to use Keynote).
 It reads the slide layout itself and draws, in order: the background, the master and layout artwork, then the
 slide's shapes: pictures, filled shapes and lines, text with its sizes/colours/bullets, groups, tables,
 simple charts and SmartArt (from the drawing PowerPoint stores with it). Animations, 3-D effects and

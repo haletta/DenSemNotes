@@ -1,6 +1,6 @@
-# DenSem Class for Mac
+# DenSemNotes for Mac
 
-Take notes in class while DenSem Class listens. It transcribes the lecture on your Mac, summarizes it as it goes, shows your slides beside your notes, answers questions from everything you've written, and turns a note into your MyNotes lesson.
+Take notes in class while DenSemNotes listens. It transcribes the lecture on your Mac, summarizes it as it goes, shows your slides beside your notes, answers questions from everything you've written, and turns a note into your MyNotes lesson.
 
 ## Install from GitHub
 
@@ -16,7 +16,7 @@ After that the app keeps itself up to date (see **Updates**).
 3. Type `bash ` (with a space), drag **Install.command** from the unzipped folder into the Terminal window, and press Return.
 4. Wait about 5 minutes the first time (it downloads Python, the speech libraries and the speech model, about 1 GB).
 
-**DenSem Class** appears in the Applications folder inside your home folder. Updating keeps all your courses, classes and settings.
+**DenSemNotes** appears in the Applications folder inside your home folder. Updating keeps all your courses, classes and settings.
 
 The first time you open it, macOS may say it's from an unidentified developer: right-click the app, choose **Open**, then **Open** again. Click **Allow** when it asks for the microphone.
 
@@ -64,7 +64,7 @@ Hides the sidebar, document list and inspector, and fades the title bar and form
 
 ## Import a past class (⇧⌘I)
 
-For a class DenSem Class didn't record. Click the import button (the arrow into a tray) at the top of the class list, right-click a course › **Import a past class…**, or press ⇧⌘I. Then:
+For a class DenSemNotes didn't record. Click the import button (the arrow into a tray) at the top of the class list, right-click a course › **Import a past class…**, or press ⇧⌘I. Then:
 
 1. Pick the **course** and the **date** of the class (the class is named by that date, like `2026-10-15-Notes`).
 2. Add the **lecture**: a transcript file, pasted text, or a recording.
@@ -86,7 +86,7 @@ There's no extra window: the formatted lesson replaces the note in the editor. A
 
 The lesson follows the **AI Conversion Prompt** in your MyNotes Template.md, word for word: front matter, the IMPORTANT main idea, sections that fit one slide, WARNING/TIP/EXAMPLE callouts, ==key terms== with a Glossary, verse blocks (references only, no Bible text), steps, tabs, a mermaid diagram, Q:/A: after sections, and a Summary. Two changes of yours win over the template: no tags, and no Review questions at the end. Your lecturer's own words and the authors they quote are kept.
 
-The template ships with the app. To use a newer one, put it at `~/Library/Application Support/DenSem Class/template.md`; delete that file to go back to the bundled one.
+The template ships with the app. To use a newer one, put it at `~/Library/Application Support/DenSemNotes/template.md`; delete that file to go back to the bundled one.
 
 ### Read view
 
@@ -143,10 +143,10 @@ The class-notes AI reads the lecture, your notes and the text of every slide dec
 
 ## Troubleshooting
 
-- **Mic bars stay grey**: System Settings › Privacy & Security › Microphone › turn on DenSem Class, then reopen the app.
-- **Slides look different from PowerPoint**: Keynote gives an exact copy. If macOS hasn't allowed DenSem Class to use Keynote, the app draws PowerPoint slides itself (pictures, shapes, tables, charts and SmartArt are kept, but fancy effects and some fonts may differ). To get exact slides: System Settings › Privacy & Security › Automation › DenSem Class › turn on Keynote, then in the Slides tab choose **⋯ › Convert again**.
+- **Mic bars stay grey**: System Settings › Privacy & Security › Microphone › turn on DenSemNotes, then reopen the app.
+- **Slides look different from PowerPoint**: Keynote gives an exact copy. If macOS hasn't allowed DenSemNotes to use Keynote, the app draws PowerPoint slides itself (pictures, shapes, tables, charts and SmartArt are kept, but fancy effects and some fonts may differ). To get exact slides: System Settings › Privacy & Security › Automation › DenSemNotes › turn on Keynote, then in the Slides tab choose **⋯ › Convert again**.
 - **Slides won't convert at all**: export them as PDF and upload the PDF.
-- **Log file**: `~/Library/Application Support/DenSem Class/app.log`
-- **Uninstall**: delete `~/Applications/DenSem Class.app` and `~/Library/Application Support/DenSem Class`. Saved files in `Documents/DenSem Class` stay.
+- **Log file**: `~/Library/Application Support/DenSemNotes/app.log`
+- **Uninstall**: delete `~/Applications/DenSemNotes.app` and `~/Library/Application Support/DenSemNotes`. Saved files in `Documents/DenSemNotes` stay.
 
 Check your school's policy on recording lectures before using it.

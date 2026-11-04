@@ -1,4 +1,4 @@
-"""Keep DenSem Class up to date from its GitHub repository.
+"""Keep DenSemNotes up to date from its GitHub repository.
 
 update.json (in the repository) names the repository and branch. version.json (written when the app is
 installed or updated) records which commit is installed. The app compares that with the newest commit on
@@ -52,7 +52,7 @@ class Updater:
 
     # -- GitHub
     def _get(self, url, accept="application/vnd.github+json", timeout=20):
-        req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "DenSem-Class-updater",
+        req = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "DenSemNotes-updater",
                                                    "X-GitHub-Api-Version": "2022-11-28"})
         token = str(self.hub.cfg.get("github_token") or "").strip()
         if token:
@@ -222,7 +222,9 @@ class Updater:
             return {"ok": False, "error": "Pause recording first."}
         self.hub.persist()
         if MAC:
-            app_path = os.path.expanduser("~/Applications/DenSem Class.app")
+            app_path = os.path.expanduser("~/Applications/DenSemNotes.app")
+            if not os.path.exists(app_path):  # installed before the rename
+                app_path = os.path.expanduser("~/Applications/DenSem Class.app")
             subprocess.Popen(["/bin/sh", "-c", f'sleep 2; open "{app_path}"'], start_new_session=True)
             threading.Timer(0.4, lambda: os._exit(0)).start()
             return {"ok": True}

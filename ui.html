@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DenSem Class</title>
+<title>DenSemNotes</title>
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
 <style>
 /* Layout: translucent title bar; panes = sidebar (library, courses, tags) | document list (class cards) | editor canvas (centred column) | inspector (live notes, ask, transcript, slides) */
@@ -816,7 +816,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
   <button class="tbtn" id="sideBtn" title="Show or hide the library (⌘\)" aria-label="Show or hide the library"><svg class="i"><use href="#i-side"/></svg></button>
   <button class="tbtn" id="newBtn" title="New class (⌘N)" aria-label="New class"><svg class="i"><use href="#i-compose"/></svg></button>
   <div class="tcenter pywebview-drag-region">
-    <div class="ttitle pywebview-drag-region" id="tTitle">DenSem Class</div>
+    <div class="ttitle pywebview-drag-region" id="tTitle">DenSemNotes</div>
     <div class="tsub pywebview-drag-region" id="tSub"></div>
   </div>
   <div class="tright">
@@ -1080,7 +1080,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
 </dialog>
 
 <dialog id="importDlg" aria-labelledby="importH" style="width:min(660px,calc(100vw - 32px))">
-  <div class="dlg-h"><h2 id="importH">Import a past class</h2><p class="dsub">For a class DenSem Class didn't record: add the lecture and slides, and the app makes the summaries, note helper and class notes.</p></div>
+  <div class="dlg-h"><h2 id="importH">Import a past class</h2><p class="dsub">For a class DenSemNotes didn't record: add the lecture and slides, and the app makes the summaries, note helper and class notes.</p></div>
   <div class="dlg-b" id="impForm">
     <div class="field"><label for="impCourse">Course</label><div class="ctl"><select id="impCourse"></select></div></div>
     <div class="field"><label for="impDate">Class date</label><div class="ctl"><input id="impDate" type="date" style="max-width:170px"></div></div>
@@ -1125,7 +1125,7 @@ const escAttr = s => esc(s).replace(/"/g, '&quot;');
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
   return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0'); };
 const post = (path, body) => fetch(path, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {})})
-  .then(r => r.json()).catch(() => ({ok: false, error: 'DenSem Class is not responding. Quit and reopen it.'}));
+  .then(r => r.json()).catch(() => ({ok: false, error: 'DenSemNotes is not responding. Quit and reopen it.'}));
 const isMac = /Mac/.test(navigator.platform);
 const modKey = e => isMac ? e.metaKey : e.ctrlKey;
 
@@ -1596,9 +1596,9 @@ es.addEventListener('lines', e => {
 /* drag a class card onto a course in the sidebar */
 let dragKid = null;
 $('cards').addEventListener('dragstart', e => { const el = e.target.closest('.card'); if (!el) return;
-  dragKid = el.dataset.id; e.dataTransfer.setData('text/x-densem-class', dragKid); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+  dragKid = el.dataset.id; e.dataTransfer.setData('text/x-densemnotes', dragKid); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
 $('sbScroll').addEventListener('dragstart', e => { const el = e.target.closest('.sb-item[data-kid]'); if (!el) return;
-  dragKid = el.dataset.kid; e.dataTransfer.setData('text/x-densem-class', dragKid); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
+  dragKid = el.dataset.kid; e.dataTransfer.setData('text/x-densemnotes', dragKid); e.dataTransfer.effectAllowed = 'move'; el.classList.add('dragging'); });
 document.addEventListener('dragend', () => { dragKid = null; document.querySelectorAll('.dragging,.sb-item.drop').forEach(x => x.classList.remove('dragging', 'drop')); });
 const dropRow = e => { const cr = e.target.closest('.crs'); return cr ? cr.querySelector('.sb-item[data-course]') : null; };
 $('sbScroll').addEventListener('dragover', e => { if (!dragKid) return; const b = dropRow(e); if (!b) return;
@@ -1610,7 +1610,7 @@ $('sbScroll').addEventListener('drop', e => { const b = dropRow(e); if (!b || !d
 /* title bar + document header */
 function renderTitle(){
   const [k, c] = findClass(S.kid);
-  $('tTitle').textContent = (k && k.name) || 'DenSem Class';
+  $('tTitle').textContent = (k && k.name) || 'DenSemNotes';
   if (document.activeElement !== $('docTitle')) $('docTitle').value = (k && k.name) || '';
   const sub = $('docSub'); sub.innerHTML = '';
   if (c){
@@ -3204,7 +3204,7 @@ function renderUpdate(){
   if (!u){ st.textContent = 'Not checked yet.'; return; }
   if (u.state === 'checking'){ st.textContent = 'Checking GitHub…'; $('updCheck').disabled = true; return; }
   if (u.state === 'installing'){ st.textContent = u.step || 'Updating…'; $('updCheck').hidden = true; return; }
-  if (u.state === 'ready'){ st.textContent = 'The new version is installed. Restart DenSem Class to use it.'; $('updRestart').hidden = false; $('updCheck').hidden = true; return; }
+  if (u.state === 'ready'){ st.textContent = 'The new version is installed. Restart DenSemNotes to use it.'; $('updRestart').hidden = false; $('updCheck').hidden = true; return; }
   if (u.error){ st.className = 'updst err'; st.textContent = u.error; return; }
   if (u.available){
     st.textContent = `A new version is ready (${shortSha(u.latest)}). What changed:`;
@@ -3301,7 +3301,7 @@ es.addEventListener('formatted', e => {
   edKid = S.kid; loadEditor(d.lines); setBusy(null); setView(!d.restored ? 'read' : 'edit'); $('edwrap').scrollTop = 0;
   toast(d.restored ? 'Your original notes are back' : (d.note ? 'Formatted (basic version, see Details)' : 'Formatted as a MyNotes lesson'));
 });
-es.onerror = () => flash('Lost contact with DenSem Class. Reconnecting…');
+es.onerror = () => flash('Lost contact with DenSemNotes. Reconnecting…');
 
 /* ======================================================================
    KEYBOARD

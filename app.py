@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DenSem Class — listen, transcribe and take notes in class, all on your Mac.
+"""DenSemNotes — listen, transcribe and take notes in class, all on your Mac.
 
 Courses hold classes ("2026-10-26-Notes"). Each class has your notes, a live transcript, live notes that
 update as the lecturer talks, and any slides/documents you upload, with notes wired to slide pages.
@@ -447,7 +447,7 @@ class App:
         hub = self.hub
         ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
         if ext not in slides.ACCEPT:
-            return {"ok": False, "error": f'"{name}" isn\'t a file type DenSem Class can show. Use PDF, PowerPoint, '
+            return {"ok": False, "error": f'"{name}" isn\'t a file type DenSemNotes can show. Use PDF, PowerPoint, '
                                           "Keynote, Word, Pages, text or a photo."}
         if not hub.lib.klass(kid):
             return {"ok": False, "error": "That class no longer exists."}
@@ -983,7 +983,7 @@ def make_handler(app):
 
 
 class WindowApi:
-    """The traffic-light buttons in DenSem Class's own title bar call these."""
+    """The traffic-light buttons in DenSemNotes' own title bar call these."""
 
     def __init__(self):
         self.window = None
@@ -999,7 +999,7 @@ class WindowApi:
 
 
 def mac_branding():
-    """Show the DenSem Class name and icon in the menu bar and Dock instead of Python's."""
+    """Show the DenSemNotes name and icon in the menu bar and Dock instead of Python's."""
     if sys.platform != "darwin":
         return
     try:

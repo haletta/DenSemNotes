@@ -1,4 +1,4 @@
-"""Where DenSem Class keeps things: settings, the course/class library, and each class's data."""
+"""Where DenSemNotes keeps things: settings, the course/class library, and each class's data."""
 import datetime
 import json
 import os
@@ -8,14 +8,29 @@ import sys
 import time
 import uuid
 
-APP_NAME = "DenSem Class"
+APP_NAME = "DenSemNotes"
 if sys.platform == "darwin":
     _SUPPORT = os.path.expanduser("~/Library/Application Support")
     DATA = os.path.join(_SUPPORT, APP_NAME)
+    RENAMED_FROM = os.path.join(_SUPPORT, "DenSem Class")
     OLD_DATA = [os.path.join(_SUPPORT, n) for n in ("DenSem Lecture", "Lecture Catch-Up")]
 else:
-    DATA = os.path.expanduser("~/.densem-class")
+    DATA = os.path.expanduser("~/.densemnotes")
+    RENAMED_FROM = os.path.expanduser("~/.densem-class")
     OLD_DATA = [os.path.expanduser("~/.densem-lecture"), os.path.expanduser("~/.lecture-catchup")]
+
+
+def _carry_over(old, new):
+    """The app was called DenSem Class: move its folder to the new name once, keeping everything in it."""
+    try:
+        if os.path.isdir(old) and not os.path.exists(new):
+            os.rename(old, new)
+    except OSError:
+        pass
+
+
+_carry_over(RENAMED_FROM, DATA)
+_carry_over(os.path.expanduser("~/Documents/DenSem Class"), os.path.expanduser(f"~/Documents/{APP_NAME}"))
 
 MODELS = os.path.join(DATA, "models")
 CFG_PATH = os.path.join(DATA, "config.json")

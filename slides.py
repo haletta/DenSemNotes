@@ -75,8 +75,8 @@ def _iwork_export(app, src, out):
         except Exception as e:
             msg = str(e)
             if "-1743" in msg or "Not authorized" in msg or "not allowed" in msg.lower():
-                raise RuntimeError(f"macOS hasn't allowed DenSem Class to use {app}. Turn it on in System Settings › "
-                                   f"Privacy & Security › Automation › DenSem Class › {app}, then choose Convert again.")
+                raise RuntimeError(f"macOS hasn't allowed DenSemNotes to use {app}. Turn it on in System Settings › "
+                                   f"Privacy & Security › Automation › DenSemNotes › {app}, then choose Convert again.")
             raise
     if not os.path.exists(out) or os.path.getsize(out) < 100:
         raise RuntimeError(f"{app} did not export a PDF")

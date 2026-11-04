@@ -1,32 +1,35 @@
 #!/bin/bash
-# DenSem Class installer for macOS.
+# DenSemNotes installer for macOS.
 # Copies the app into ~/Library/Application Support, sets up Python and the
-# speech model, and adds "DenSem Class" to your Applications folder.
-# Your courses, settings and speech model from DenSem Lecture / Lecture Catch-Up carry over.
+# speech model, and adds "DenSemNotes" to your Applications folder.
+# Your courses, notes, settings and speech model from DenSem Class (and older versions) carry over.
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
 SUPPORT="$HOME/Library/Application Support"
-HOME_DIR="$SUPPORT/DenSem Class"
+HOME_DIR="$SUPPORT/DenSemNotes"
 APP_DIR="$HOME_DIR/app"
-APP="$HOME/Applications/DenSem Class.app"
+APP="$HOME/Applications/DenSemNotes.app"
 
 say_step(){ printf "\n\033[1;32m==>\033[0m %s\n" "$1"; }
 UPDATE=0
 [ "${1:-}" = "--update" ] && UPDATE=1   # run by the app's own updater: no Finder window, no model download
 
-echo "DenSem Class installer"
+echo "DenSemNotes installer"
 echo "This takes about 5 minutes and downloads roughly 1 GB the first time."
 
 # Bring data from earlier versions (the app turns the last lecture into a class on first start)
-for OLD in "$SUPPORT/DenSem Lecture" "$SUPPORT/Lecture Catch-Up"; do
+for OLD in "$SUPPORT/DenSem Class" "$SUPPORT/DenSem Lecture" "$SUPPORT/Lecture Catch-Up"; do
   if [ -d "$OLD" ] && [ ! -d "$HOME_DIR" ]; then
     say_step "Moving your settings and speech model from $(basename "$OLD")"
     mv "$OLD" "$HOME_DIR"
     rm -rf "$HOME_DIR/app"
   fi
 done
-rm -rf "$HOME/Applications/DenSem Lecture.app" "$HOME/Applications/Lecture Catch-Up.app"
+rm -rf "$HOME/Applications/DenSem Class.app" "$HOME/Applications/DenSem Lecture.app" "$HOME/Applications/Lecture Catch-Up.app"
+if [ -d "$HOME/Documents/DenSem Class" ] && [ ! -e "$HOME/Documents/DenSemNotes" ]; then
+  mv "$HOME/Documents/DenSem Class" "$HOME/Documents/DenSemNotes"   # lessons and exports you saved
+fi
 
 say_step "Copying app files"
 mkdir -p "$APP_DIR"
@@ -72,7 +75,7 @@ if not sha:
         import certifi
         ctx = ssl.create_default_context(cafile=certifi.where())
         req = urllib.request.Request(f"https://api.github.com/repos/{u['repo']}/commits/{u.get('branch', 'main')}",
-                                     headers={"User-Agent": "DenSem-Class-installer"})
+                                     headers={"User-Agent": "DenSemNotes-installer"})
         sha = json.load(urllib.request.urlopen(req, context=ctx, timeout=20))["sha"]
     except Exception:
         sha = ""
@@ -80,7 +83,7 @@ json.dump({"repo": u["repo"], "sha": sha}, open(os.path.join(app, "version.json"
 PY
 fi
 
-say_step "Adding DenSem Class to your Applications folder"
+say_step "Adding DenSemNotes to your Applications folder"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -88,33 +91,33 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>DenSem Class</string>
-  <key>CFBundleDisplayName</key><string>DenSem Class</string>
-  <key>CFBundleIdentifier</key><string>local.densem-class</string>
+  <key>CFBundleName</key><string>DenSemNotes</string>
+  <key>CFBundleDisplayName</key><string>DenSemNotes</string>
+  <key>CFBundleIdentifier</key><string>local.densemnotes</string>
   <key>CFBundleVersion</key><string>2.0</string>
   <key>CFBundleShortVersionString</key><string>2.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleExecutable</key><string>DenSemClass</string>
+  <key>CFBundleExecutable</key><string>DenSemNotes</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>DenSem Class listens to the lecture so it can transcribe and summarize it on your Mac.</string>
-  <key>NSAppleEventsUsageDescription</key><string>DenSem Class asks Keynote or Pages to turn your slides and documents into pages it can show next to your notes.</string>
+  <key>NSMicrophoneUsageDescription</key><string>DenSemNotes listens to the lecture so it can transcribe and summarize it on your Mac.</string>
+  <key>NSAppleEventsUsageDescription</key><string>DenSemNotes asks Keynote or Pages to turn your slides and documents into pages it can show next to your notes.</string>
 </dict>
 </plist>
 PLIST
-cat > "$APP/Contents/MacOS/DenSemClass" <<LAUNCH
+cat > "$APP/Contents/MacOS/DenSemNotes" <<LAUNCH
 #!/bin/bash
 cd "$APP_DIR"
 exec "$APP_DIR/.venv/bin/python" "$APP_DIR/app.py" >> "$HOME_DIR/app.log" 2>&1
 LAUNCH
-chmod +x "$APP/Contents/MacOS/DenSemClass"
+chmod +x "$APP/Contents/MacOS/DenSemNotes"
 cp "$SRC/assets/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 touch "$APP"
 codesign --force --deep -s - "$APP" >/dev/null 2>&1 || true
 
 say_step "Done"
-echo "Open DenSem Class from your Applications folder (or Spotlight: Cmd+Space, type 'DenSem')."
+echo "Open DenSemNotes from your Applications folder (or Spotlight: Cmd+Space, type 'DenSemNotes')."
 echo "The first time you press Start listening, macOS asks for microphone access: click Allow."
-echo "The first time you upload PowerPoint slides, macOS may ask to let DenSem Class use Keynote: click OK."
+echo "The first time you upload PowerPoint slides, macOS may ask to let DenSemNotes use Keynote: click OK."
 [ "$UPDATE" = "0" ] && { open -R "$APP" || true; }

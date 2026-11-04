@@ -1,4 +1,4 @@
-"""Import a class that DenSem Class didn't record: a transcript (file or pasted) or a recording, plus slides and
+"""Import a class that DenSemNotes didn't record: a transcript (file or pasted) or a recording, plus slides and
 any notes taken. The app then builds what a recorded class has: timed transcript, slide links, part summaries,
 the note helper (points, quotes, books, terms, examples, questions, due dates) and class notes in the
 student's MyNotes template.
@@ -120,7 +120,7 @@ def read_text(path, ext):
     if ext == "rtf":
         with open(path, "rb") as f:
             return rtf_text(f.read())
-    raise ValueError("DenSem Class can't read that file type. Save the transcript as text, Word or PDF.")
+    raise ValueError("DenSemNotes can't read that file type. Save the transcript as text, Word or PDF.")
 
 
 def parse_transcript(text):
@@ -313,7 +313,7 @@ class Importer:
             return {"ok": False, "error": f'"{name}" arrived empty. Try again, or open it and paste the text into '
                                           "\"Or paste the transcript\"."}
         if ext not in TEXT_EXT | MEDIA_EXT:
-            return {"ok": False, "error": f'"{name}" isn\'t a transcript or recording DenSem Class can read. Use text, '
+            return {"ok": False, "error": f'"{name}" isn\'t a transcript or recording DenSemNotes can read. Use text, '
                                           "Word, PDF, subtitles (.srt/.vtt) or an audio/video file."}
         folder = os.path.join(class_dir(kid), "import")
         os.makedirs(folder, exist_ok=True)
