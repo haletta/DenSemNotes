@@ -131,22 +131,15 @@ Change any of them in **Preferences › Shortcuts**: click a shortcut and press 
 
 ## AI (Preferences › AI)
 
-- **Ollama** (default, free, offline): install from ollama.com, then click **Download** next to `llama3.2`.
-- **Google Gemini** or **Groq** (free tiers, need internet): paste a free key.
-- **Claude** (paid key), or **None** (key sentences only).
+- **AI** (top): writes the live summaries, the note helper and Ask answers.
+  - **Ollama** (default, free, offline): install from ollama.com, then click **Download** next to `llama3.2`.
+  - **Google Gemini** or **Groq** (free tiers, need internet): paste a free key.
+  - **Claude** (API key), or **None** (key sentences only).
+- **Class notes**: who writes your class notes (Format as lesson and imported classes). It can differ from the AI above:
+  - **Claude Code: my Claude plan, no API key.** Uses the Claude subscription you already have (Pro, Max…); its use counts toward your plan's normal limits. One-time setup: open Terminal, paste `curl -fsSL https://claude.ai/install.sh | bash`, then open a new Terminal window, type `claude`, press Return and sign in with your Claude account. Back in Preferences press **Check again**, then **Test**. Choose **Sonnet** (recommended), **Opus** (most careful) or **Haiku** (fastest).
+  - **Claude with my API key**, or **The same AI as above**.
 
-If the AI is unavailable, the app keeps going with basic summaries.
-
-## Updates
-
-The app checks the repository's **main** branch when it opens and every few hours. When there's a new commit, an **Update** button appears in the title bar. **Preferences › General › Updates** lists what changed (the commit messages) and has:
-
-- **Update now**: downloads that version, keeps your current one, installs any new libraries, then asks you to **Restart now**. Your classes, notes and settings are never touched.
-- **Go back to the previous version**: if an update misbehaves.
-- **Check now**, and a switch to turn automatic checks off.
-- **Private repository?**: paste a GitHub token with read-only access to the repository's contents. A public repository needs no token.
-
-Updates come from the repository named in `update.json`. Updating is paused while you're recording.
+The class-notes AI reads the lecture, your notes and the text of every slide deck and PDF in the class, so you can also make class notes from slides and handouts alone (import them with no script). If the AI is unavailable, the app keeps going with basic summaries and a basic lesson.
 
 ## Troubleshooting
 

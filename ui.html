@@ -646,6 +646,10 @@ dialog h2{font:700 15px var(--font-display);margin:0}
 .dlg-b{padding:16px 22px;overflow-y:auto;max-height:calc(100vh - 220px)}
 .dlg-f{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 18px;border-top:1px solid var(--hairline)}
 .dlg-f .sp{flex:1}
+.lsep{border-top:1px solid var(--hairline);margin:6px 0 16px}
+.cchelp ol{margin:2px 0 0;padding-left:1.2em;font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+.cccmd{display:flex;gap:6px;align-items:center;margin-top:4px}
+.cccmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font:12px var(--font-mono);background:var(--bg-editor);padding:5px 8px;border-radius:6px;box-shadow:inset 0 0 0 .5px var(--hairline-strong)}
 .updpill{height:22px;border:0;border-radius:11px;padding:0 10px;background:var(--accent-color);color:#fff;font:600 11.5px var(--font-sans);margin-right:4px}
 .updbox{background:var(--fill);border-radius:9px;padding:9px 11px;display:flex;flex-direction:column;gap:7px}
 .updst{font-size:12.5px;color:var(--text-main)}
@@ -1017,7 +1021,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
         <option value="groq">Groq: free tier, needs internet</option>
         <option value="claude">Claude: paid API key</option>
         <option value="none">None: key sentences only</option>
-      </select><small>Writes the live summaries, answers in Ask, and lessons.</small></div></div>
+      </select><small>Writes the live summaries, the note helper and answers in Ask. Class notes can use a different AI (below).</small></div></div>
       <div class="panel" data-for="ollama">
         <p class="hint" id="ollamaState">Checking for Ollama…</p>
         <div class="field"><label for="ollama_model">Ollama model</label>
@@ -1044,6 +1048,26 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
       </div>
       <div class="panel" data-for="none"><p class="hint" style="margin:0">Live summaries use the most informative sentences. No AI, no setup.</p></div>
       <p class="hint" id="testState"></p>
+      <div class="lsep"></div>
+      <div class="field"><label for="lesson_ai">Class notes</label><div class="ctl"><select id="lesson_ai">
+        <option value="claude_code">Claude Code: my Claude plan, no API key</option>
+        <option value="claude_api">Claude with my API key (above)</option>
+        <option value="same">The same AI as above</option>
+      </select><small>Who writes your class notes (Format as lesson, and imported classes). Live summaries, the note helper and Ask keep using the AI above.</small></div></div>
+      <div class="field" id="lessonModelField"><label for="lesson_model">Model</label><div class="ctl"><select id="lesson_model">
+        <option value="sonnet">Sonnet: excellent notes (recommended)</option><option value="opus">Opus: the most careful, uses more of your plan</option><option value="haiku">Haiku: fastest</option>
+      </select></div></div>
+      <div class="field" id="ccField"><span class="lab">Claude Code</span><div class="ctl">
+        <div class="updbox"><div class="updst" id="ccState">Checking…</div>
+          <div class="cchelp" id="ccHelp" hidden>
+            <ol><li>Open <b>Terminal</b> (⌘Space, type Terminal) and paste:<div class="cccmd"><code id="ccCmd">curl -fsSL https://claude.ai/install.sh | bash</code><button class="btn sm" type="button" id="ccCopy">Copy</button></div></li>
+            <li>When it finishes, open a new Terminal window, type <code>claude</code>, press Return and sign in with your Claude account (the one with your plan). Then close Terminal.</li>
+            <li>Come back here and press <b>Check again</b>.</li></ol>
+          </div>
+          <div class="updrow"><button class="btn sm" type="button" id="ccCheck">Check again</button><button class="btn sm" type="button" id="ccTest">Test</button><span class="sp"></span></div>
+          <small>Uses your Claude plan's normal usage limits (shared with Claude and Claude Code). No API key is needed or used.</small>
+        </div>
+      </div></div>
     </section>
   </div>
   <div class="dlg-f"><button class="btn" id="setTest" type="button">Test AI</button><span class="sp"></span><button class="btn" id="setCancel">Cancel</button><button class="btn primary" id="setSave">Done</button></div>
@@ -3119,6 +3143,7 @@ async function openPrefs(which){
   removeGh = false; $('ghToken').value = ''; $('pAutoUpd').checked = c.auto_update_check !== false;
   const hasGh = c.has_key && c.has_key.github; $('ghToken').placeholder = hasGh ? 'Token saved (type to replace)' : 'GitHub token with read access'; $('ghTokenRm').hidden = !hasGh;
   renderUpdate();
+  $('lesson_ai').value = c.lesson_ai || 'same'; $('lesson_model').value = c.lesson_model || 'sonnet'; syncLessonAi();
   if (!prefs.open) prefs.showModal();
   const devs = await fetch('/devices').then(r => r.json()).catch(() => []);
   const sel = $('device'); sel.innerHTML = ''; sel.add(new Option('System default microphone', ''));
@@ -3132,10 +3157,35 @@ function settingsBody(){
   const b = {keys, remove_keys: removeKeys, device: $('device').value};
   ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every'].forEach(k => b[k] = $(k).value);
   b.auto_update_check = $('pAutoUpd').checked;
+  b.lesson_ai = $('lesson_ai').value; b.lesson_model = $('lesson_model').value;
   if ($('ghToken').value.trim()) b.github_token = $('ghToken').value.trim();
   if (removeGh) b.remove_github_token = true;
   return b;
 }
+/* class notes AI: Claude Code (the student's plan) */
+let ccInfo = null;
+function syncLessonAi(){
+  const w = $('lesson_ai').value;
+  $('lessonModelField').hidden = w === 'same'; $('ccField').hidden = w !== 'claude_code';
+  if (w === 'claude_code' && !ccInfo) checkClaudeCode();
+}
+async function checkClaudeCode(){
+  $('ccState').className = 'updst'; $('ccState').textContent = 'Looking for Claude Code on this Mac…';
+  ccInfo = await fetch('/claude_code').then(r => r.json()).catch(() => ({installed: false}));
+  $('ccHelp').hidden = !!ccInfo.installed; $('ccTest').hidden = !ccInfo.installed;
+  $('ccState').textContent = ccInfo.installed ? `Found Claude Code ${ccInfo.version ? '(' + ccInfo.version + ') ' : ''}at ${ccInfo.path}. Press Test to check it's signed in.` : 'Claude Code isn\'t installed on this Mac yet. It takes about a minute:';
+  if (ccInfo.install) $('ccCmd').textContent = ccInfo.install;
+}
+$('lesson_ai').onchange = syncLessonAi;
+$('ccCheck').onclick = () => { ccInfo = null; checkClaudeCode(); };
+$('ccCopy').onclick = async () => { try { await navigator.clipboard.writeText($('ccCmd').textContent); toast('Copied. Paste it into Terminal.'); } catch { const r = document.createRange(); r.selectNodeContents($('ccCmd')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Selected. Press ⌘C, then paste it into Terminal.'); } };
+$('ccTest').onclick = async () => {
+  const st = $('ccState'); st.className = 'updst'; st.textContent = 'Asking Claude through Claude Code…'; $('ccTest').disabled = true;
+  const r = await post('/claude_code/test', {model: $('lesson_model').value}); $('ccTest').disabled = false;
+  if (r.ok){ st.textContent = `Working. Claude replied: “${r.reply}” Press Done to keep this choice.`; }
+  else { st.className = 'updst err'; st.textContent = r.error; if (r.info && !r.info.installed){ $('ccHelp').hidden = false; } }
+};
+
 /* updates from GitHub */
 let removeGh = false, UPD = null;
 $('ghTokenRm').onclick = () => { removeGh = true; $('ghTokenRm').hidden = true; $('ghToken').placeholder = 'Token will be removed when you press Done'; };

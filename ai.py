@@ -1,7 +1,11 @@
 """Talking to the AI chosen in Preferences: Ollama (local), Gemini or Groq (free tiers), or Claude."""
 import json
+import os
 import re
+import shutil
 import ssl
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -145,3 +149,132 @@ def ollama_pull(hub, model):
         hub.emit("pull", {"model": model, "state": "done", "text": "Downloaded"})
     except Exception as e:
         hub.emit("pull", {"model": model, "state": "error", "text": f"Download failed: {e}"})
+
+
+# ---------------------------------------------------------------- Claude Code: the student's own Claude plan, no API key
+CC_PATHS = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+            "~/.npm-global/bin/claude", "~/.bun/bin/claude")
+CC_MODELS = {"sonnet": "Claude Sonnet", "opus": "Claude Opus", "haiku": "Claude Haiku"}
+API_MODELS = {"sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5", "haiku": "claude-haiku-5-5"}
+CC_INSTALL = "curl -fsSL https://claude.ai/install.sh | bash"
+
+
+def _cc_env():
+    env = dict(os.environ)
+    env.pop("ANTHROPIC_API_KEY", None)  # with a key set, Claude Code would bill the API instead of the Claude plan
+    extra = [os.path.expanduser(p) for p in ("~/.local/bin", "~/.claude/local", "~/.npm-global/bin", "~/.bun/bin")]
+    env["PATH"] = os.pathsep.join(extra + ["/opt/homebrew/bin", "/usr/local/bin", env.get("PATH", "/usr/bin:/bin")])
+    return env
+
+
+def find_claude_code():
+    found = shutil.which("claude", path=_cc_env()["PATH"])
+    if found:
+        return found
+    for p in CC_PATHS:
+        p = os.path.expanduser(p)
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    return ""
+
+
+def claude_code_info():
+    exe = find_claude_code()
+    info = {"installed": bool(exe), "path": exe.replace(os.path.expanduser("~"), "~") if exe else "", "version": "",
+            "install": CC_INSTALL}
+    if exe:
+        try:
+            r = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=20, env=_cc_env())
+            info["version"] = (r.stdout or r.stderr).strip().split("\n")[0][:60]
+        except Exception:
+            pass
+    return info
+
+
+def claude_code_ask(prompt, model="sonnet", timeout=900):
+    """Run Claude Code once, non-interactively, signed in with the student's Claude plan.
+    The prompt goes in on stdin; Claude Code runs in an empty folder with its file and web tools turned off,
+    so it only writes text back."""
+    exe = find_claude_code()
+    if not exe:
+        raise RuntimeError("Claude Code isn't installed. See Preferences › AI › Class notes.")
+    instruction = ("The input is a complete writing task. Follow its instructions exactly and reply with only what it "
+                   "asks for, with no preamble. Don't use any tools.")
+    cmd = [exe, "-p", instruction, "--output-format", "json", "--model", model if model in CC_MODELS else "sonnet",
+           "--disallowedTools", "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task,Agent,Read,Glob,Grep"]
+    with tempfile.TemporaryDirectory(prefix="densem-claude-") as work:
+        try:
+            r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, timeout=timeout, cwd=work,
+                               env=_cc_env())
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("Claude Code took too long to answer.") from None
+    out = (r.stdout or "").strip()
+    data = None
+    for line in reversed(out.splitlines()):
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                data = json.loads(line)
+                break
+            except ValueError:
+                continue
+    if data is None and out.startswith("{"):
+        try:
+            data = json.loads(out)
+        except ValueError:
+            data = None
+    text = str((data or {}).get("result") or "") if data else out
+    failed = r.returncode != 0 or bool((data or {}).get("is_error"))
+    if failed:
+        low = (text + " " + (r.stderr or "")).lower()
+        if "log in" in low or "login" in low or "not logged" in low or "authenticat" in low or "/login" in low:
+            raise RuntimeError("Claude Code isn't signed in. Open Terminal, type claude, press Return and sign in "
+                               "with your Claude account, then try again.")
+        if "limit" in low and ("usage" in low or "reached" in low or "rate" in low):
+            raise RuntimeError("Your Claude plan's usage limit is reached for now. Try again later.")
+        raise RuntimeError("Claude Code couldn't write it: " + (text or r.stderr or "unknown error").strip()[:300])
+    if not text.strip():
+        raise RuntimeError("Claude Code answered with nothing.")
+    return text.strip()
+
+
+def lesson_ai(cfg):
+    """Which AI writes class notes: 'claude_code', 'claude_api' or 'same' (the AI used for everything else)."""
+    v = cfg.get("lesson_ai") or "same"
+    return v if v in ("claude_code", "claude_api", "same") else "same"
+
+
+def lesson_ready(cfg):
+    w = lesson_ai(cfg)
+    if w == "claude_code":
+        return bool(find_claude_code())
+    if w == "claude_api":
+        return bool(cfg.get("api_key"))
+    return ai_ready(cfg)
+
+
+def lesson_name(cfg):
+    w, m = lesson_ai(cfg), cfg.get("lesson_model") or "sonnet"
+    if w == "claude_code":
+        return f"{CC_MODELS.get(m, 'Claude')} (Claude Code)"
+    if w == "claude_api":
+        return CC_MODELS.get(m, "Claude")
+    return NAMES.get(cfg.get("provider"), "The AI")
+
+
+def lesson_budget(cfg):
+    """How many words of transcript the class-notes AI can take."""
+    w = lesson_ai(cfg)
+    if w in ("claude_code", "claude_api"):
+        return 40000
+    return {"ollama": 6000, "groq": 3500, "gemini": 40000, "claude": 40000}.get(cfg.get("provider"), 6000)
+
+
+def ask_lesson(cfg, prompt, max_tokens=4000):
+    w, m = lesson_ai(cfg), cfg.get("lesson_model") or "sonnet"
+    if w == "claude_code":
+        return claude_code_ask(prompt, m)
+    if w == "claude_api":
+        return ask_ai({**cfg, "provider": "claude", "claude_model": API_MODELS.get(m, API_MODELS["sonnet"])}, prompt,
+                      max_tokens, long=True)
+    return ask_ai(cfg, prompt, max_tokens, long=True)

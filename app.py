@@ -51,6 +51,8 @@ DEFAULTS = dict(
     provider="ollama",  # ollama | gemini | groq | claude | none
     ollama_model="llama3.2",
     gemini_key="",
+    lesson_ai="same",  # who writes class notes: same | claude_code (the Claude plan, no key) | claude_api
+    lesson_model="sonnet",
     github_token="",  # only needed when the app updates from a private repository
     auto_update_check=True,
     gemini_model="gemini-flash-lite-latest",
@@ -255,6 +257,8 @@ class Hub:
         c["has_key"] = {"claude": bool(self.cfg["api_key"]), "gemini": bool(self.cfg["gemini_key"]),
                         "groq": bool(self.cfg["groq_key"]), "github": bool(self.cfg.get("github_token"))}
         c["ai_ready"] = ai_ready(self.cfg)
+        from ai import lesson_name, lesson_ready
+        c["lesson_ready"], c["lesson_name"] = lesson_ready(self.cfg), lesson_name(self.cfg)
         c["spell_ok"] = spell.available(self.cfg["language"])
         return c
 
@@ -495,6 +499,19 @@ class App:
             traceback.print_exc()
             self._set_doc(kid, did, status="error", error=str(e)[:300], note="")
 
+    def claude_code_test(self, data):
+        from ai import claude_code_ask, claude_code_info
+
+        info = claude_code_info()
+        if not info["installed"]:
+            return {"ok": False, "error": "Claude Code isn't installed yet.", "info": info}
+        try:
+            out = claude_code_ask("Reply with exactly: Ready to write your class notes.",
+                                  str(data.get("model") or self.hub.cfg.get("lesson_model") or "sonnet"), timeout=180)
+            return {"ok": True, "reply": out[:200], "info": info}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "info": info}
+
     def link_lesson(self, data):
         """Tie an existing lesson's sections to the slides (for lessons made before slide links, or after
         slides are added)."""
@@ -635,6 +652,10 @@ class App:
                 hub.cfg[field] = key
             if which in (data.get("remove_keys") or []):
                 hub.cfg[field] = ""
+        if data.get("lesson_ai") in ("same", "claude_code", "claude_api"):
+            hub.cfg["lesson_ai"] = data["lesson_ai"]
+        if data.get("lesson_model") in ("sonnet", "opus", "haiku"):
+            hub.cfg["lesson_model"] = data["lesson_model"]
         if "github_token" in data and str(data["github_token"]).strip():
             hub.cfg["github_token"] = str(data["github_token"]).strip()
         if data.get("remove_github_token"):
@@ -849,6 +870,9 @@ def make_handler(app):
                 self._json(app.devices())
             elif path == "/ollama":
                 self._json(ollama_info())
+            elif path == "/claude_code":
+                from ai import claude_code_info
+                self._json(claude_code_info())
             else:
                 self._json({"error": "not found"}, 404)
 
@@ -919,6 +943,7 @@ def make_handler(app):
                 "/doc/delete": lambda: app.delete_doc(data),
                 "/import/new": lambda: app.importer.create(data),
                 "/update/check": lambda: app.updater.check(),
+                "/claude_code/test": lambda: app.claude_code_test(data),
                 "/update/install": lambda: app.updater.update(),
                 "/update/restore": lambda: app.updater.restore(),
                 "/update/restart": lambda: app.updater.restart(),

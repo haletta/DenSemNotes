@@ -452,8 +452,9 @@ class Importer:
                 self._step(kid, "helper", "skipped")
                 self._step(kid, "summary", "skipped")
             # class notes in the student's template
-            if job["opts"]["notes"] and (s["segs"] or any(l.get("text", "").strip() for l in s.get("lines", []))):
-                self._step(kid, "notes", "working", "this can take a few minutes with a local AI")
+            if job["opts"]["notes"] and (s["segs"] or ready or any(l.get("text", "").strip() for l in s.get("lines", []))):
+                from ai import lesson_name
+                self._step(kid, "notes", "working", f"{lesson_name(hub.cfg)} is writing them")
                 job["notes_wait"] = True
                 r = self.app.format_note({"kid": kid, "blend": "balanced"})
                 if not r.get("ok"):

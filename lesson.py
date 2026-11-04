@@ -6,7 +6,7 @@ import subprocess
 import sys
 import threading
 
-from ai import NAMES, ask_ai, ai_ready
+from ai import NAMES, ask_ai, ai_ready, ask_lesson, lesson_budget, lesson_name, lesson_ready
 from store import EXPORT_ROOT, lesson_keep, safe_name
 from words import chunk_text, fmt, word_count
 
@@ -122,7 +122,7 @@ def lesson_material(s, sources, cap_words):
     return wrote, points, segs, trimmed, docs
 
 
-def build_prompt(s, opts, cap_words, slide_text):
+def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500):
     sources = opts.get("sources") or ["wrote", "heard"]
     wrote, points, segs, trimmed, docs = lesson_material(s, sources, cap_words)
     fm = [f"{k}: {str(opts.get(k)).strip()}" for k in ("title", "course", "order", "tags", "bible")
@@ -159,7 +159,34 @@ def build_prompt(s, opts, cap_words, slide_text):
         if sl and (sl["doc"], sl["page"]) not in used:
             used.append((sl["doc"], sl["page"]))
     used.sort(key=lambda dp: ([d["id"] for d in docs].index(dp[0]) if dp[0] in [d["id"] for d in docs] else 99, dp[1]))
-    if used:
+    all_docs = ""
+    if doc_pages:
+        # every uploaded slide deck and document, page by page, as far as the AI's budget allows
+        budget, blocks = doc_budget, []
+        for name, pages in doc_pages:
+            for n, text in enumerate(pages, 1):
+                text = re.sub(r"\s+", " ", text or "").strip()
+                if not text:
+                    continue
+                w = len(text.split())
+                if budget - w < 0:
+                    text = " ".join(text.split()[:max(0, budget)])
+                if not text:
+                    break
+                budget -= len(text.split())
+                blocks.append(f"[{os.path.splitext(name)[0][:40]} p{n}] {text}")
+            if budget <= 0:
+                break
+        if blocks:
+            all_docs = "\n".join(blocks)
+    if all_docs:
+        parts.append("(D) THE CLASS'S SLIDES AND DOCUMENTS, page by page ([name pN]). Use them to order the sections the "
+                     "way the slides go, to spell names and terms correctly, and to fill in what the lecture refers to "
+                     "on the slides. Keep their substance, but don't copy slides wholesale."
+                     + ("" if (wrote or segs or points) else " There is no recording or written notes for this class: "
+                        "build the whole lesson from these slides and documents, keeping all of their content and "
+                        "inventing nothing.") + "\n" + all_docs)
+    elif used:
         budget, blocks = 2500, []
         for doc, page in used:
             text = re.sub(r"\s+", " ", slide_text({"doc": doc, "page": page}) or "").strip()
@@ -221,6 +248,20 @@ def clean_lesson(md, opts):
     texts = md.rstrip().split("\n")
     md = "\n".join(texts[i] for i in lesson_keep(texts))
     return md.rstrip() + "\n"
+
+
+def docs_lesson(doc_pages, opts):
+    """No-AI fallback for a class that has only slides or documents: one section per slide/page."""
+    title = opts.get("title") or opts.get("class_name") or "Lecture Notes"
+    out = [f"# {title}", ""]
+    for name, pages in doc_pages:
+        for n, text in enumerate(pages, 1):
+            rows = [r.strip(" •-–\t") for r in (text or "").split("\n") if r.strip(" •-–\t")]
+            if not rows:
+                continue
+            head = " ".join(rows[0].split()[:8])
+            out += [f"## {head}", ""] + [f"- {r}" for r in rows[1:12]] + [""]
+    return clean_lesson("\n".join(out), {**opts, "title": title})
 
 
 def basic_lesson(s, opts):
@@ -415,25 +456,32 @@ class LessonBuilder:
         try:
             s = hub.class_copy(kid)
             has_notes = any(l.get("text", "").strip() for l in s.get("lines", []))
-            if not s["segs"] and not has_notes:
+            ready_docs = [d for d in s.get("docs", []) if d.get("status") == "ready"]
+            doc_pages = [(d["name"], hub.page_texts(kid, d["id"])) for d in ready_docs]
+            has_docs = any((t or "").strip() for _, pages in doc_pages for t in pages)
+            if not s["segs"] and not has_notes and not has_docs:
                 hub.emit("lesson", {"state": "error", "kid": kid,
-                                    "text": "There's nothing yet: record some lecture or write some notes first."})
+                                    "text": "There's nothing yet: record some lecture, write some notes or add slides first."})
                 if getattr(hub, "lesson_hook", None):
                     hub.lesson_hook(kid, False, "nothing to write from")
                 return
             note, md = "", None
-            if ai_ready(hub.cfg):
-                name = NAMES.get(hub.cfg["provider"])
+            if lesson_ready(hub.cfg):
+                name = lesson_name(hub.cfg)
                 hub.emit("lesson", {"state": "working", "kid": kid,
-                                    "text": f"{name} is writing the lesson. On Ollama this can take a few minutes…"})
+                                    "text": f"{name} is writing the lesson. This can take a minute or two…"})
                 try:
-                    prompt = build_prompt(s, opts, CAPS.get(hub.cfg["provider"], 6000),
-                                          lambda sl: hub.slide_text(kid, sl))
-                    md = clean_lesson(ask_ai(hub.cfg, prompt, 4000, long=True), opts)
+                    big = lesson_budget(hub.cfg) >= 20000
+                    prompt = build_prompt(s, opts, lesson_budget(hub.cfg), lambda sl: hub.slide_text(kid, sl),
+                                          doc_pages if (big or not (s["segs"] or has_notes)) else None,
+                                          30000 if big else 2500)
+                    md = clean_lesson(ask_lesson(hub.cfg, prompt, 4000), opts)
                     if md.count("\n") < 8:
                         raise RuntimeError("The AI's answer was too short to be a lesson.")
                 except Exception as e:
                     note, md = f"{e} Made a basic version from your notes and the summary points instead.", None
+            if md is None and not s["segs"] and not has_notes and has_docs:
+                md = docs_lesson(doc_pages, opts)
             if md is None:
                 md = basic_lesson(s, opts)
                 note = note or ("Basic version (no AI selected). Choose an AI in Preferences for a full lesson with "
