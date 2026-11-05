@@ -41,7 +41,7 @@ UI_DEFAULTS = {
     "font": "sans", "size": 17, "lh": 1.65, "width": 700,
     "marks": False, "gutter": True, "spell": True, "autocorrect": True, "follow": False,
     "tools": ["h2", "h3", "bold", "term", "bul", "num", "todo", "callout", "qa", "verse", "link", "spell", "format"],
-    "blend": "notes", "bible": "", "readLessons": True,
+    "blend": "notes", "bible": "", "readLessons": True, "slideLayout": False,
     "filter": None,
     "keys": {},   # shortcut id -> combo, only the ones I changed
     "open": {},   # course id -> expanded in the sidebar
@@ -619,6 +619,11 @@ class App:
                 "tags": "", "bible": str(data.get("bible") or self.hub.cfg["ui"].get("bible") or ""), "class_name": fallback,
                 "blend": "notes" if blend == "only_notes" else blend,
                 "sources": ["wrote"] if blend == "only_notes" else ["wrote", "heard"]}
+        want = data.get("slideLayout")
+        if want is None:
+            want = self.hub.cfg["ui"].get("slideLayout")
+        if want and any(d.get("status") == "ready" for d in s.get("docs", [])):
+            opts["layout"] = "slides"  # the slides are the outline; the lecture and my notes fill each slide in
         if data.get("source") == "material":
             # a new lesson from what the class already has: transcript, summaries, slides and documents, plus the
             # notes I wrote myself (as they were before any earlier formatting); never from an earlier lesson

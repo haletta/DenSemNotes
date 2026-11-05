@@ -78,7 +78,9 @@ A checklist shows each step. You can close the window; the class fills in as it 
 
 ## Format as lesson (⇧⌘F)
 
-Turns the note itself into your MyNotes template: front matter, one title, sections, callouts, ==key terms== with a glossary, Q:/A: questions and a diagram. It blends your writing with the lecture summaries, transcript and slides; choose the mix from the arrow next to the button (Mostly my notes, Balanced, Mostly the lecture, Only my notes).
+Turns the note itself into your MyNotes template: front matter, one title, sections, callouts and ==key terms== with a glossary. It blends your writing with the lecture summaries, transcript and slides; choose the mix from the arrow next to the button (Mostly my notes, Balanced, Mostly the lecture, Only my notes).
+
+**Use the slides as the layout** (in the same menu, in Preferences › Editor, and in the Import window): when the class has slides, each slide becomes a section in slide order. The AI starts from what the slide says, expands it with what the lecturer said while it was showing, and puts your notes under the slide you wrote them on. It's off unless you tick it.
 
 **New lesson from transcript & slides** (in the Format as lesson menu, the Lesson & export menu, or right-click any class in the list) writes a fresh lesson from what a class already has: its transcript, slides and documents, plus the notes you wrote yourself (as they were before any earlier formatting, never from an earlier lesson). Use it to remake a lesson in the new style or after adding slides. The current lesson is kept: **Restore** brings it back.
 

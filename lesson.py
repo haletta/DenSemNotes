@@ -33,6 +33,16 @@ LESSON_RULES = """FORMAT RULES (MyNotes Markdown), follow exactly:
 10. Keep any [[Lesson Title]] links the student wrote.
 11. Output only the Markdown file. No code fence around it, nothing before or after it."""
 
+SLIDE_LAYOUT = """LAYOUT: THE SLIDES ARE THE OUTLINE (the student chose this; it wins over anything above about sections):
+- Go through the slides in (D) in order. Each content slide becomes a "## " section headed with the slide's own title (shortened if long); when several slides in a row cover one topic, use one "## " for the topic and a "### " for each slide.
+- Page N of a deck in (D) ([name pN]) is the same slide as a [slide N] or [name pN] tag in (A), (B) and (C).
+- Skip only title, agenda, "questions?", thank-you and blank slides.
+- In each section, start from what the slide says (its points, in its order), then EXPAND it with what the lecturer taught while that slide was showing: lines in (B) and (C) tagged with that slide, or clearly about it. Add the explanations, examples, stories, quotes and warnings the lecturer gave, so the section teaches more than the slide.
+- Put the student's notes from (A) into the section of the slide they were written on (their [slide N] tag), in the student's words, following the mix described above.
+- Lecture content that matches no slide goes into the section it relates to most, or, if it's a real topic of its own, into a short "## " section where it happened in time.
+- A slide the lecturer skipped or barely mentioned still gets a short section from its own content.
+- Sections can be longer here than usual, but keep bullets short and the rest of the rules (main idea callout, ==terms==, Summary, Glossary)."""
+
 FULL = 10 ** 7  # no word limit: the full transcript and all resources go to the class-notes AI
 CAPS = {"ollama": 6000, "groq": 3500, "gemini": 40000, "claude": 40000}
 
@@ -160,10 +170,13 @@ def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500
         if points:
             txt += "\n" + "\n".join(f"[{fmt(t)}{_slide_tag(sl, docs)}] {x}" for t, x, sl in points)
         parts.append("(B) LECTURE SUMMARIES written during class (part by part), and things heard in class:\n" + txt.strip())
+    layout = opts.get("layout") == "slides" and bool(doc_pages)
     if "heard" in sources and segs:
+        if layout:  # show which slide was up for each line, so each slide's section gets what was said about it
+            chunk = "\n".join(f"[{fmt(x['t'])}{_slide_tag(x.get('sl'), docs)}] {x['text']}" for x in segs)
         note = " (excerpts around the moments the student wrote notes; the full recording was longer)" if trimmed else ""
         parts.append(f"(C) LECTURE TRANSCRIPT from speech recognition{note}. Words may be mis-heard: fix obvious "
-                     "errors from context.\n" + chunk_text(segs))
+                     "errors from context.\n" + (chunk if layout else chunk_text(segs)))
     used = []
     for _, _, sl in wrote + points + [(x["t"], x["text"], x.get("sl")) for x in s["segs"]]:
         if sl and (sl["doc"], sl["page"]) not in used:
@@ -192,7 +205,9 @@ def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500
     if all_docs:
         parts.append("(D) THE CLASS'S SLIDES AND DOCUMENTS, page by page ([name pN]). Use them to order the sections the "
                      "way the slides go, to spell names and terms correctly, and to fill in what the lecture refers to "
-                     "on the slides. Keep their substance, but don't copy slides wholesale."
+                     "on the slides. "
+                     + ("They are the outline of the lesson (see LAYOUT below)." if layout
+                        else "Keep their substance, but don't copy slides wholesale.")
                      + ("" if (wrote or segs or points) else " There is no recording or written notes for this class: "
                         "build the whole lesson from these slides and documents, keeping all of their content and "
                         "inventing nothing.") + "\n" + all_docs)
@@ -232,6 +247,8 @@ def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500
         parts.append(LESSON_RULES.format(fm=fm_txt, bible_rule=bible_rule))
     parts.append(STYLE)
     parts.append(OVERRIDES)
+    if layout:
+        parts.append(SLIDE_LAYOUT)
     return "\n\n".join(parts)
 
 

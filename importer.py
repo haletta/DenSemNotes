@@ -344,7 +344,8 @@ class Importer:
         if job.get("running"):
             return {"ok": False, "error": "This class is already being imported."}
         job["running"] = True
-        job["opts"] = {"summary": data.get("summary") is True, "notes": data.get("notes", True) is not False}
+        job["opts"] = {"summary": data.get("summary") is True, "notes": data.get("notes", True) is not False,
+                       "slideLayout": data.get("slideLayout") is True}
         if not job["opts"]["summary"]:  # straight to the class notes: no part summaries or note-helper picks
             job["steps"] = [st for st in job["steps"] if st["id"] not in ("helper", "summary")]
         threading.Thread(target=self._run, args=(kid,), daemon=True).start()
@@ -458,7 +459,7 @@ class Importer:
                 from ai import lesson_name
                 self._step(kid, "notes", "working", f"{lesson_name(hub.cfg)} is writing them")
                 job["notes_wait"] = True
-                r = self.app.format_note({"kid": kid, "blend": "balanced"})
+                r = self.app.format_note({"kid": kid, "blend": "balanced", "slideLayout": job["opts"].get("slideLayout", False)})
                 if not r.get("ok"):
                     self._step(kid, "notes", "error", r.get("error", ""))
                     job["notes_wait"] = False
