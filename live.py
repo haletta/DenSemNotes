@@ -264,7 +264,7 @@ Reply with JSON only: {{"items":[{{"kind":"point|quote|source|term|word|example"
 
 def aid_extra(s, start, end):
     """Extra parts of AID_PROMPT: questions asked in this stretch, and words still waiting for a definition."""
-    qs = [p for p in s["points"] if p["kind"] == "question" and start - 5 <= p["t"] <= end + 5 and not p.get("brief")]
+    qs = []  # questions are restated only when the student asks ("What was the question?")
     q_txt = ("\n\nQUESTIONS THE LECTURER ASKED in this stretch. For each, \"brief\" = the question restated in under 15 "
              "plain words so it makes sense on its own, and \"context\" = one sentence on what was being discussed when "
              "it was asked, for a student who wasn't listening:\n" + "\n".join(f"[{p['id']}] {p['title']}" for p in qs[:6])) if qs else ""
@@ -319,10 +319,19 @@ class Summarizer:
         self.ev.set()
 
     def period(self):
+        """Length of one summary part. With "only when I pause or finish" (period 0) the lecture is still
+        summarized in 10-minute parts, but all at once at the end."""
         try:
             return max(1, int(self.hub.cfg.get("period") or 10)) * 60
         except (TypeError, ValueError):
             return 600
+
+    def live_parts(self):
+        """True when parts are summarized during class; False (the default) means only when paused or finished."""
+        try:
+            return int(self.hub.cfg.get("period") or 0) > 0
+        except (TypeError, ValueError):
+            return False
 
     def loop(self):
         while True:
@@ -345,7 +354,7 @@ class Summarizer:
                 t_now = self.hub.now() if kid == self.hub.kid else s["elapsed"]
             self._aids_ai(kid, s, t_now, final)
             made = False
-            while True:  # catch up on every whole period that has passed
+            while final or self.live_parts():  # catch up on every whole period that has passed
                 start = s["blocks"][-1]["end"] if s.get("blocks") else 0.0
                 if t_now - start >= self.period():
                     self._close_block(kid, s, start, start + self.period())
@@ -665,6 +674,46 @@ class Summarizer:
         hub.save_and_emit(kid, s, "blocks", {"blocks": s["blocks"], "overall": overall, "topic": s["topic"]})
 
     # -- "What did I miss?"
+    def last_question(self, kid, s, now):
+        """The latest question the lecturer asked, restated briefly with what it was about. On demand only."""
+        hub = self.hub
+        with hub.lock:
+            qs = [p for p in s["points"] if p["kind"] == "question"]
+            if not qs:
+                return {"title": "Last question", "text": "No question heard yet in this class."}
+            p = qs[-1]
+            segs = [x for x in s["segs"] if p["t"] - 120 <= x["t"] <= p["t"] + 20]
+        ago = max(0, int(now - p["t"]))
+        when = f"{fmt(p['t'])} · {ago // 60} min ago" if ago >= 60 else f"{fmt(p['t'])} · just now"
+        if not p.get("brief") and ai_ready(hub.cfg) and segs:
+            course = hub.course_name(kid)
+            prompt = f"""A student{f' in {course}' if course else ''} wasn't listening when the lecturer asked the class a question and may be called on. Speech-recognition transcript around it (may contain mis-heard words):
+
+{chunk_text(segs)}
+
+The question, at {fmt(p['t'])}: {p['title']}
+
+Reply with JSON only: {{"brief":"the question restated in under 15 plain words so it makes sense on its own","context":"one or two sentences on what was being discussed that led to it","hint":"one short line on what a good answer would touch on, from what was said"}}"""
+            try:
+                out = parse_json(ask_ai(hub.cfg, prompt, 300, json_mode=True))
+                with hub.lock:
+                    p["brief"] = str(out.get("brief") or "").strip()[:160]
+                    p["ctx"] = str(out.get("context") or "").strip()[:320] or p.get("ctx", "")
+                    p["hint"] = str(out.get("hint") or "").strip()[:200]
+                hub.save_and_emit(kid, s, "points", {"add": [], "update": [dict(p)], "topic": s["topic"]})
+            except Exception:
+                pass
+        text = f"Question: {p.get('brief') or p['title']}"
+        if p.get("brief") and p["brief"] != p["title"]:
+            text += f"\nAsked: “{p['title']}”"
+        if p.get("ctx"):
+            text += f"\nAbout: {p['ctx']}"
+        if p.get("hint"):
+            text += f"\nAnswer could cover: {p['hint']}"
+        if len(qs) > 1:
+            text += "\n\nEarlier: " + " · ".join(f"[{fmt(q['t'])}] {q.get('brief') or q['title']}" for q in qs[-3:-1])
+        return {"title": f"Last question · {when}", "text": text}
+
     def catch_up(self, kid, s, end, mins):
         hub = self.hub
         start = max(0, end - mins * 60)

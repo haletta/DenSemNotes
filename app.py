@@ -65,7 +65,7 @@ DEFAULTS = dict(
     claude_model="claude-haiku-5-5",
     whisper="small.en" if ARM else "base.en",
     language="en",
-    period=10,  # minutes per live summary
+    period=0,  # minutes per live summary; 0 = only when the class is paused or finished
     aid_every=2,  # minutes between AI passes of the live note helper (0 = instant detection only)
     hard_words="normal",  # difficult words in the note helper: off | fewer | normal | more
     known_words=[],  # difficult words the student removed ("I know this one"): never flagged again
@@ -92,6 +92,8 @@ class Hub:
                     self.cfg["provider"] = "claude"
         except Exception:
             pass
+        if not self.cfg.get("summary_on_demand"):  # summaries now come only when paused or finished, unless chosen
+            self.cfg.update(period=0, summary_on_demand=True)
         self.lib = Library(self.cfg)
         self.cfg["ui"] = {**UI_DEFAULTS, **(self.cfg.get("ui") or {})}
         save_json(CFG_PATH, self.cfg)
@@ -680,7 +682,7 @@ class App:
             if k in data and str(data[k]).strip():
                 hub.cfg[k] = str(data[k]).strip()
         if str(data.get("period", "")).isdigit():
-            hub.cfg["period"] = max(1, min(60, int(data["period"])))
+            hub.cfg["period"] = max(0, min(60, int(data["period"])))
         if str(data.get("aid_every", "")).isdigit():
             hub.cfg["aid_every"] = max(0, min(10, int(data["aid_every"])))
         if data.get("hard_words") in ("off", "fewer", "normal", "more"):
@@ -795,6 +797,10 @@ class App:
         kid, at = data.get("kid") or self.hub.kid, data.get("at")
         self.hub.update_class(kid, lambda s: s.__setitem__("asks", [x for x in s.get("asks", []) if x.get("at") != at]))
         return {"ok": True}
+
+    def last_question(self, data):
+        hub = self.hub
+        return self.summ.last_question(hub.kid, hub.s, hub.now())
 
     def catch_up(self, data):
         hub = self.hub
@@ -1023,6 +1029,7 @@ def make_handler(app):
                 "/start": app.start,
                 "/stop": app.stop,
                 "/catchup": lambda: app.catch_up(data),
+                "/lastq": lambda: app.last_question(data),
                 "/settings": lambda: app.settings(data),
                 "/prefs": lambda: app.prefs(data),
                 "/ollama/pull": lambda: app.pull(str(data.get("model", "")).strip()),
