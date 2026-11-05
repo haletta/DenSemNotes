@@ -27,10 +27,11 @@ LESSON_RULES = """FORMAT RULES (MyNotes Markdown), follow exactly:
 4. Each section opens with one or two plain sentences on what it's about and why it matters, then 3-6 bullets, one idea each, key phrase in **bold**.
 5. Mark key terms with ==term== on first use, and end the file with a "## Glossary" of "- term: meaning" lines (3-8 real terms, spelled exactly as marked), followed by any DIFFICULT WORD items as "- word (part of speech): plain dictionary meaning".
 6. Bible references: standard form with chapter and verse (e.g. "Eph 2:8-9"). Speech recognition writes them as words ("john three sixteen"); convert them. For a passage central to a section, a code block with language "verse" containing only the reference. Never quote Bible text.
-7. Only when the content calls for it, never as decoration: a heading containing "Steps" with a numbered list for a real process; "::: tabs" with "### Name" blocks and ":::" when views are compared; one ```mermaid diagram when a relationship or sequence is easier to see (labels with parentheses, colons or quotes in double quotes); <details><summary>Title</summary> ... </details> for optional depth; "Q:"/"A:" only for questions the lecturer actually asked.
-8. End with "## Summary" (3-5 takeaways), then the Glossary. No Review section and no questions at the end.
-9. Keep any [[Lesson Title]] links the student wrote.
-10. Output only the Markdown file. No code fence around it, nothing before or after it."""
+7. Only when the content calls for it, never as decoration: a heading containing "Steps" with a numbered list for a real process; "::: tabs" with "### Name" blocks and ":::" when views are compared; one ```mermaid diagram when a relationship or sequence is easier to see (labels with parentheses, colons or quotes in double quotes); <details><summary>Title</summary> ... </details> for optional depth.
+8. Questions: leave out the questions asked during class. Most are rhetorical, checks ("does that make sense?", "can you see this?"), logistics or students asking about the course. A question belongs in the notes only when the lecturer used it to teach and answered it; then write the answer into the section as a normal bullet (the question can be the bullet's **bold** lead-in). No "Q:"/"A:" lines in the body.
+9. End with "## Summary" (3-5 takeaways), then the Glossary. No Review section and no questions at the end.
+10. Keep any [[Lesson Title]] links the student wrote.
+11. Output only the Markdown file. No code fence around it, nothing before or after it."""
 
 FULL = 10 ** 7  # no word limit: the full transcript and all resources go to the class-notes AI
 CAPS = {"ollama": 6000, "groq": 3500, "gemini": 40000, "claude": 40000}
@@ -76,12 +77,14 @@ STYLE = """HOW THE LESSON SHOULD READ (a clear, lively study page the student en
 - > [!WARNING] for a mistake or danger the lecturer warned about; > [!TIP] for a practical application; > [!NOTE] for useful background.
 - Add a short clarifying detail from the material (a date, a name, what a word means, the context) where it makes a point easier to follow.
 - Cut the noise: greetings, attendance, tech trouble, housekeeping, "any questions?", repeats (merge them), filler and vague statements.
+- Lines marked TEACHING QUESTION: use one only if its answer teaches something; write the answer as a bullet in that section. Never list the questions heard in class, and don't turn the transcript's questions into Q:/A: pairs.
 - Prefer fewer, fuller sections over many thin ones."""
 
 
 OVERRIDES = """THE STUDENT'S CHANGES (these win over anything above):
 - No tags anywhere: leave "tags" out of the front matter and write no #hashtags.
-- No questions at the end: no "## Review" section and no Q:/A: pairs after the Summary. End with "## Summary", then "## Glossary"."""
+- No questions at the end: no "## Review" section and no Q:/A: pairs after the Summary. End with "## Summary", then "## Glossary".
+- No questions in the middle either: don't copy the questions asked during class into the notes, and write no Q:/A: lines except ones the student wrote, even if a template above asks for them. When the lecturer asked something to teach a point and answered it, the answer goes in as a normal bullet."""
 
 
 def _slide_tag(sl, docs):
@@ -93,18 +96,23 @@ def _slide_tag(sl, docs):
     return f" · slide {sl['page']}"
 
 
+def _answered(p):
+    return (p.get("detail") or "").strip().lower().startswith("answer:")
+
+
 def lesson_material(s, sources, cap_words):
     """Collect timed material for the prompt, trimming the transcript to fit the AI's budget."""
     docs = s.get("docs", [])
     wrote = [((l.get("t") or 0), l["text"] + "", l.get("sl")) for l in s.get("lines", []) if l.get("text", "").strip()]
-    lead = {"question": "QUESTION ASKED: ", "deadline": "DUE: ", "quote": "QUOTE: ", "source": "FROM A BOOK/AUTHOR: ",
+    lead = {"question": "TEACHING QUESTION (only if its answer teaches something): ", "deadline": "DUE: ", "quote": "QUOTE: ", "source": "FROM A BOOK/AUTHOR: ",
             "term": "KEY TERM: ", "word": "DIFFICULT WORD (put in the Glossary with this meaning): ",
             "example": "EXAMPLE: ", "point": "KEY POINT: "}
     points = [(p["t"], lead.get(p["kind"], "") + p["title"]
                + (f" — {p['detail']}" if p.get("detail") else "")
                + (f" (dictionary: {p['dict']})" if p.get("dict") else "")
                + (f" [asked while discussing: {p['ctx']}]" if p["kind"] == "question" and p.get("ctx") else ""),
-               p.get("sl")) for p in s["points"]]
+               p.get("sl")) for p in s["points"]
+              if p["kind"] != "question" or _answered(p)]
     segs = s["segs"]
     trimmed = False
     if "heard" in sources and word_count(segs) > cap_words:
@@ -286,6 +294,7 @@ def basic_lesson(s, opts):
         bq = [p for p in pts if t0 <= p["t"] < t0 + span and p["kind"] == "question"]
         bw = [x for t, x in wrote if t0 <= t < t0 + span]
         bw = [("## " + x[2:]) if x.startswith("# ") else x for x in bw]  # only one # per lesson
+        bq = [q for q in bq if _answered(q)]
         if bp or bw or bq:
             if not (bw and bw[0].startswith("## ")):
                 head = " ".join((bp[0]["title"] if bp else (bw[0] if bw else bq[0]["title"]).lstrip("#-*> ")).split()[:6])
@@ -299,9 +308,9 @@ def basic_lesson(s, opts):
                 else:
                     out += [f"- {p['title']}" + (f": {p['detail']}" if p.get("detail") else "") for p in bp]
                 out.append("")
-            for q in bq:
-                ans = q["detail"][7:].strip() if q.get("detail", "").startswith("Answer:") else "(answer from your notes)"
-                out += [f"Q: {q['title']}", f"A: {ans}", ""]
+            qa = [f"- **{q['title']}** {q['detail'][7:].strip()}" for q in bq if _answered(q)]
+            if qa:
+                out += qa + [""]
         t0 += span
     keep = [p for p in pts if p["kind"] != "question"][:5]
     if keep:
@@ -328,10 +337,10 @@ def _basic_from_blocks(s, opts, blocks):
         if b.get("details"):
             out += (["> [!NOTE]", "> From the lecture:"] + [f"> - {d}" for d in b["details"]]) if bw else [f"- {d}" for d in b["details"]]
             out.append("")
-        for q in s["points"]:
-            if q["kind"] == "question" and b["start"] <= q["t"] < end:
-                ans = q["detail"][7:].strip() if q.get("detail", "").startswith("Answer:") else "(answer from your notes)"
-                out += [f"Q: {q['title']}", f"A: {ans}", ""]
+        qa = [f"- **{q['title']}** {q['detail'][7:].strip()}" for q in s["points"]
+              if q["kind"] == "question" and b["start"] <= q["t"] < end and _answered(q)]
+        if qa:
+            out += qa + [""]
     keep = ov.get("points") or [b["title"] for b in blocks]
     out += ["## Summary"] + [f"- {x}" for x in keep[:5]] + [""]
     return clean_lesson("\n".join(out), {**opts, "title": title})

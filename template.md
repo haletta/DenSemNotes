@@ -106,7 +106,8 @@ Q: What does Romans 5:1 say we have with God?
 A: Peace, through our Lord Jesus Christ.
 ```
 
-- Put 1–3 after each main section, or collect them in a `## Review` section at the end.
+- Optional, and only for questions you want to quiz yourself on. Class notes made by the AI don't add them.
+- Don't copy the questions asked in class into your notes. If the lecturer asked something to teach a point and answered it, write the answer as a normal bullet.
 - Keep answers to 1–2 sentences. These also feed quizzes and flashcards.
 
 ## 6. Expandable Content
@@ -342,13 +343,13 @@ USE THESE ONLY WHEN THE CONTENT CALLS FOR THEM, never as decoration:
 - "::: tabs" with "### Name" blocks and a closing ":::", when two or more views are compared.
 - One ```mermaid diagram (flowchart, timeline or mindmap), when a relationship, order or history is easier to see than to read. Put labels with parentheses, colons or quotes in double quotes.
 - <details><summary>Title</summary> ... </details> (blank lines inside) for optional depth.
-- "Q:" and "A:" lines only for questions the lecturer actually asked the class.
 - [[Exact Title]] links to other lessons I mention.
 
 LEAVE OUT:
 - Greetings, attendance, tech trouble, housekeeping, "any questions?", jokes that carry no point.
 - Repeated points (merge them), filler, vague statements, and anything said only to fill time.
 - Tags, a Review section, and questions at the end.
+- The questions asked during class, and Q:/A: lines anywhere. If the lecturer asked something to teach a point and answered it, put the answer in as a normal bullet.
 
 Output only the Markdown, nothing before or after it.
 
