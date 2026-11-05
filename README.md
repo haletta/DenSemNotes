@@ -104,7 +104,7 @@ The lesson follows the **AI Conversion Prompt** in your class note template. The
 A finished lesson opens in **Read** view, looking the way MyNotes shows it: sans-serif headings, serif body, bullets with **bold** key phrases, callout cards with an icon, spaced label and a chevron to fold them, and key terms underlined with dots (click one for its definition).
 
 - Self-check answers reveal on click, tabs switch, steps go Back/Next, diagrams draw (offline), and verse cards open the passage on Bible Gateway.
-- **Read / Edit** at the top of the lesson switches views (⌥⌘R). The app remembers your choice for the next lesson.
+- **Read / Edit** at the top of the lesson switches views (⌘R). The app remembers your choice for the next lesson.
 
 ## Live summaries, Ask, Transcript, Slides
 
@@ -134,7 +134,7 @@ Change any of them in **Preferences › Shortcuts**: click a shortcut and press 
 |---|---|---|---|
 | Library | ⌘\ | Format as lesson | ⇧⌘F |
 | Focus mode | ⌘D | Save lesson as .md | ⌘S |
-| Read / Edit lesson | ⌥⌘R | Check spelling | ⌘; |
+| Read / Edit lesson | ⌘R | Check spelling | ⌘; |
 | Appearance (Aa) | ⌘T | | |
 | Light / dark | ⌥⌘T | | |
 | Show Markdown | ⇧⌘M | | |
