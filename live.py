@@ -10,14 +10,15 @@ import numpy as np
 
 from ai import Offline, ask_ai, ai_ready, parse_json
 from store import MODELS
+import dictionary
 from words import (DEADLINE, STOP, aids_in, chunk_text, content_words, fmt, key_sentences, overlap, questions_in,
                    sentences, similarity, to_sec, word_count)
 
 SR = 16000
 BLOCK = 1600  # 0.1 s
 BOILER = re.compile(r"^(thank you\.?|thanks for watching.*|subtitles by.*|you\.?|\.+)$", re.I)
-KINDS = ("point", "question", "deadline", "quote", "source", "term", "example")
-AID_KINDS = ("point", "quote", "source", "term", "example")
+KINDS = ("point", "question", "deadline", "quote", "source", "term", "word", "example")
+AID_KINDS = ("point", "quote", "source", "term", "word", "example")
 
 
 def slide_at(s, t):
@@ -254,10 +255,50 @@ List only what a student should write down from this stretch, 0 to 5 items:
 - "point": a main idea or claim the lecturer stressed, one short sentence, in the lecturer's words where possible.
 - "quote": a striking sentence the lecturer said or read out, word for word; "who" = the person quoted (empty if it's the lecturer's own words).
 - "source": an idea the lecturer credited to a book, article or author; "who" = the author, "work" = the title if it was said; "text" = the idea in one sentence.
-- "term": a key term the lecturer explained; "text" = the term, "meaning" = its meaning as explained.
+- "term": a key term of the subject that the lecturer used or explained; "text" = the term, "meaning" = its meaning as the lecturer explained it (empty if not explained), "dict" = a short dictionary definition.
+- "word": a difficult English word the lecturer used that an average English speaker may not know (not a subject term already listed, not a name); "text" = the word in its dictionary form, "pos" = part of speech, "dict" = a plain dictionary definition in under 20 words.
 - "example": a story, case or illustration the lecturer used, in one sentence.
-Skip small talk, class logistics and questions. Never invent names or titles that weren't said.{have}
-Reply with JSON only: {{"items":[{{"kind":"point|quote|source|term|example","text":"...","who":"","work":"","meaning":"","at":"mm:ss"}}]}}"""
+Skip small talk, class logistics and questions. Never invent names or titles that weren't said.{have}{questions}{define}
+Reply with JSON only: {{"items":[{{"kind":"point|quote|source|term|word|example","text":"...","who":"","work":"","meaning":"","pos":"","dict":"","at":"mm:ss"}}],"questions":[{{"id":"","brief":"","context":""}}],"defs":[{{"word":"","pos":"","dict":""}}]}}"""
+
+
+def aid_extra(s, start, end):
+    """Extra parts of AID_PROMPT: questions asked in this stretch, and words still waiting for a definition."""
+    qs = [p for p in s["points"] if p["kind"] == "question" and start - 5 <= p["t"] <= end + 5 and not p.get("brief")]
+    q_txt = ("\n\nQUESTIONS THE LECTURER ASKED in this stretch. For each, \"brief\" = the question restated in under 15 "
+             "plain words so it makes sense on its own, and \"context\" = one sentence on what was being discussed when "
+             "it was asked, for a student who wasn't listening:\n" + "\n".join(f"[{p['id']}] {p['title']}" for p in qs[:6])) if qs else ""
+    need = [p for p in s["points"] if p["kind"] in ("word", "term") and not (p["detail"] if p["kind"] == "word" else p.get("dict"))]
+    d_txt = ("\n\nGive a short dictionary definition (\"defs\") for each of these words from the lecture, as used there: "
+             + ", ".join(p["title"] for p in need[-8:])) if need else ""
+    return q_txt, d_txt
+
+
+def q_context(segs, i, q):
+    """What was said just before a question, so a student who drifted off can see what it's about."""
+    before = []
+    head = segs[i]["text"].split(q)[0] if q in segs[i]["text"] else ""
+    for x in reversed(sentences(head)):
+        before.insert(0, x)
+    j = i - 1
+    while j >= 0 and sum(len(x.split()) for x in before) < 35:
+        for x in reversed(sentences(segs[j]["text"])):
+            before.insert(0, x)
+            if sum(len(y.split()) for y in before) >= 35:
+                break
+        j -= 1
+    while before and sum(len(x.split()) for x in before) > 45:
+        before.pop(0)
+    txt = " ".join(x for x in before if not x.endswith("?") or len(x.split()) > 6)
+    return txt[-320:].lstrip(" ,.")
+
+
+def add_dict(p):
+    """Put the Mac's dictionary sense on a key term (one or two words only)."""
+    if len(p["title"].split()) <= 2:
+        pos, sense = dictionary.define(p["title"])
+        if sense:
+            p.update(dict=(f"{pos} · " if pos else "") + sense, dsrc="dictionary")
 
 
 def _strs(xs, n, size):
@@ -322,21 +363,41 @@ class Summarizer:
 
     # -- instant: questions and due dates
     def _questions(self, kid, s):
-        new = []
+        new, upd = [], []
         with self.hub.lock:
             segs = s["segs"][s["q_idx"]:]
             s["q_idx"] = len(s["segs"])
-            for seg in segs:
+            level = str(self.hub.cfg.get("hard_words") or "normal")
+            first = len(s["segs"]) - len(segs)
+            for i, seg in enumerate(segs):
                 for q in questions_in(seg["text"]):
                     if any(p["kind"] == "question" and similarity(p["title"], q) > 0.8 for p in s["points"][-10:] + new):
                         continue
-                    new.append(self._new_point(s, seg["t"], "question", q, "", seg.get("sl")))
+                    p = self._new_point(s, seg["t"], "question", q, "", seg.get("sl"))
+                    p["ctx"] = q_context(s["segs"], first + i, q)
+                    new.append(p)
                 for kind, title, detail in aids_in(seg["text"]):
                     recent = [p for p in s["points"][-25:] + new if p["kind"] in AID_KINDS]
-                    if any(similarity(p["title"], title) > 0.6 or (kind == "term" and p["kind"] == "term" and
+                    if any(similarity(p["title"], title) > 0.6 or (kind == "term" and p["kind"] in ("term", "word") and
                                                                    p["title"].lower() == title.lower()) for p in recent):
+                        old = next((p for p in s["points"] if kind == "term" and p["kind"] == "word"
+                                    and p["title"].lower() == title.lower()), None)
+                        if old:  # the lecturer explained a word we'd flagged as difficult: it's a key term now
+                            old.update(kind="term", dict=old.get("detail", ""), detail=detail)
+                            old["rev"] = old.get("rev", 0) + 1
+                            upd.append(dict(old))
                         continue
-                    new.append(self._new_point(s, seg["t"], kind, title, detail, seg.get("sl")))
+                    p = self._new_point(s, seg["t"], kind, title, detail, seg.get("sl"))
+                    if kind == "term":
+                        add_dict(p)
+                    new.append(p)
+                known = {p["title"].lower() for p in s["points"] + new if p["kind"] in ("term", "word")}
+                known.update(self.hub.cfg.get("known_words") or [])
+                for w in dictionary.hard_words(seg["text"], level, known):
+                    pos, sense = dictionary.define(w)
+                    p = self._new_point(s, seg["t"], "word", w, sense, seg.get("sl"))
+                    p.update(pos=pos, dsrc="dictionary" if sense else "")
+                    new.append(p)
                 for x in sentences(seg["text"]):
                     if x.endswith("?") or len(x.split()) < 5 or not DEADLINE.search(x):
                         continue
@@ -344,8 +405,8 @@ class Summarizer:
                         continue
                     new.append(self._new_point(s, seg["t"], "deadline", x, "", seg.get("sl")))
             s["points"].extend(new)
-        if new:
-            self.hub.save_and_emit(kid, s, "points", {"add": new, "update": [], "topic": s["topic"]})
+        if new or upd:
+            self.hub.save_and_emit(kid, s, "points", {"add": new, "update": upd, "topic": s["topic"]})
 
     # -- every minute or two: the AI tidies and adds to the note helper
     def aid_every(self):
@@ -376,19 +437,45 @@ class Summarizer:
         earlier = [b for b in s.get("blocks", []) if not b["quiet"]][-1:]
         earlier_txt = (f"\nThe lecture so far: {earlier[0]['title']}: {earlier[0]['summary']}\n") if earlier else ""
         course = hub.course_name(kid)
+        q_txt, d_txt = aid_extra(s, start, end)
         prompt = AID_PROMPT.format(course=f" ({course})" if course else "", earlier=earlier_txt, start=fmt(start),
-                                   end=fmt(end), text=chunk_text(segs), have=have_txt)
+                                   end=fmt(end), text=chunk_text(segs), have=have_txt, questions=q_txt, define=d_txt)
         try:
-            out = parse_json(ask_ai(hub.cfg, prompt, 700, json_mode=True))
+            out = parse_json(ask_ai(hub.cfg, prompt, 1100, json_mode=True))
         except Exception:
             s["aid_t"] = start + max(every / 2, 30)  # try again soon, without hammering a slow or missing AI
             return
         s["aid_t"] = end
-        self.merge_aids(kid, s, out.get("items") or [], start, end, segs)
+        self.merge_aids(kid, s, out.get("items") or [], start, end, segs, out)
 
-    def merge_aids(self, kid, s, items, start, end, segs):
+    def merge_aids(self, kid, s, items, start, end, segs, out=None):
         add, upd = [], []
+        out = out if isinstance(out, dict) else {}
         with self.hub.lock:
+            byid = {p["id"]: p for p in s["points"]}
+            for q in (out.get("questions") or [])[:8]:
+                p = byid.get(str((q or {}).get("id") or "").strip("[] ")) if isinstance(q, dict) else None
+                if not p or p["kind"] != "question":
+                    continue
+                brief, ctx = str(q.get("brief") or "").strip()[:160], str(q.get("context") or "").strip()[:300]
+                if brief or ctx:
+                    p.update(brief=brief or p.get("brief", ""), ctx=ctx or p.get("ctx", ""))
+                    p["rev"] = p.get("rev", 0) + 1
+                    upd.append(dict(p))
+            for d in (out.get("defs") or [])[:10]:
+                if not isinstance(d, dict):
+                    continue
+                w, sense = str(d.get("word") or "").strip().lower(), str(d.get("dict") or "").strip()[:240]
+                for p in s["points"]:
+                    if not sense or p["title"].lower() != w:
+                        continue
+                    if p["kind"] == "word" and not p["detail"]:
+                        p.update(detail=sense, pos=p.get("pos") or str(d.get("pos") or "")[:20], dsrc="ai")
+                    elif p["kind"] == "term" and not p.get("dict"):
+                        p.update(dict=sense, dsrc="ai")
+                    else:
+                        continue
+                    upd.append(dict(p))
             pool = [p for p in s["points"] if p["kind"] in AID_KINDS and start - 60 <= p["t"] <= end + 5]
             for it in items[:6]:
                 if not isinstance(it, dict):
@@ -398,8 +485,22 @@ class Summarizer:
                 if kind not in AID_KINDS or len(text) < 2:
                     continue
                 who, work, meaning = (str(it.get(k) or "").strip() for k in ("who", "work", "meaning"))
-                if kind == "term":
-                    title, detail = text[:60], meaning
+                sense, pos = str(it.get("dict") or "").strip()[:240], str(it.get("pos") or "").strip()[:20]
+                if kind == "word":
+                    text = text.lower()
+                    if len(text.split()) > 3 or text in (self.hub.cfg.get("known_words") or []):
+                        continue
+                    old = next((p for p in s["points"] + add if p["kind"] in ("term", "word") and p["title"].lower() == text), None)
+                    if old is not None:  # already listed: only fill in a missing definition
+                        if sense and old["kind"] == "word" and not old["detail"]:
+                            old.update(detail=sense, pos=old.get("pos") or pos, dsrc="ai")
+                            upd.append(dict(old))
+                        elif sense and old["kind"] == "term" and not old.get("dict"):
+                            old.update(dict=sense, dsrc="ai")
+                            upd.append(dict(old))
+                        continue
+                if kind in ("term", "word"):
+                    title, detail = text[:60], (meaning if kind == "term" else sense)
                 else:
                     title, detail = text, " · ".join(v for v in (who, work) if v)
                 t = to_sec(it.get("at")) if it.get("at") else 0
@@ -417,12 +518,27 @@ class Summarizer:
                         break
                 if same is not None:
                     if same.get("by") != "ai" and same in pool:
-                        same.update(kind=kind, title=title[:220], detail=detail[:500] or same.get("detail", ""), by="ai")
+                        keep_word = same["kind"] == "word" and kind == "word"
+                        same.update(kind=kind, title=title[:220], by="ai",
+                                    detail=(same.get("detail") if keep_word and same.get("detail") else detail[:500])
+                                    or same.get("detail", ""))
+                        if kind == "term" and sense and not same.get("dict"):
+                            same.update(dict=sense, dsrc="ai")
                         same["rev"] = same.get("rev", 0) + 1
                         upd.append(dict(same))
                     continue
                 p = self._new_point(s, t, kind, title, detail, sl)
                 p["by"] = "ai"
+                if kind == "word":
+                    mpos, msense = dictionary.define(title)
+                    if msense:  # the Mac's dictionary wins over the AI's wording
+                        p.update(detail=msense, pos=mpos or pos, dsrc="dictionary")
+                    else:
+                        p.update(pos=pos, dsrc="ai" if detail else "")
+                elif kind == "term":
+                    add_dict(p)
+                    if not p.get("dict") and sense:
+                        p.update(dict=sense, dsrc="ai")
                 add.append(p)
             s["points"].extend(add)
             s["points"].sort(key=lambda p: p["t"])
@@ -564,15 +680,20 @@ class Summarizer:
 
 {chunk_text(segs)}
 
-In 2-4 short bullet points (start each with "• "), tell them what they missed: the main idea, any key term or definition, any example or formula, and anything they were asked to do. Finish with one line starting "Right now:" saying what the lecturer is in the middle of. Plain text, no preamble."""
+If the lecturer asked the class a question in this stretch, begin with a line starting "Question:" that restates the latest one briefly so it makes sense on its own, then a line starting "About:" saying in one sentence what was being discussed, so the student could answer if called on.
+Then in 2-4 short bullet points (start each with "• "), tell them what they missed: the main idea, any key term or definition, any example or formula, and anything they were asked to do. Finish with one line starting "Right now:" saying what the lecturer is in the middle of. Plain text, no preamble."""
             try:
                 return {"title": title, "text": ask_ai(hub.cfg, prompt, 400)}
             except Exception as e:
                 note = str(e)
         picks = key_sentences(segs, 3)
         text = "\n".join("• " + x for _, x in picks) or " ".join(x["text"] for x in segs[-3:])
+        qp = [p for p in s["points"] if p["kind"] == "question" and start <= p["t"] <= end + 5]
         qs = [q for x in segs for q in questions_in(x["text"])]
-        if qs:
+        if qp:
+            q = qp[-1]
+            text = f"Question: {q.get('brief') or q['title']}" + (f"\nAbout: {q['ctx']}" if q.get("ctx") else "") + "\n" + text
+        elif qs:
             text += "\n• Asked: " + qs[-1]
         if note:
             text += f"\n\n({note} This recap is from key sentences.)"

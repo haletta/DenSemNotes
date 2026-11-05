@@ -479,6 +479,20 @@ ol.points{list-style:none;margin:0;padding:0}
 .points li.question .tag{background:var(--q-soft);color:var(--q)}
 .points li.deadline .tag{background:var(--dl-soft);color:var(--dl)}
 .points li.question .t{color:var(--q)}
+.points li.word .tag{background:var(--accent-soft);color:var(--accent)}
+.points .wd{font-weight:700}
+.points .pos{font:italic 400 .86rem var(--font-serif, Georgia, serif);color:var(--muted);margin-left:6px}
+.points .def{font-size:.86rem;line-height:1.4;margin-top:1px}
+.points .dl{font:700 .64rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-right:5px}
+.points .ctx{color:var(--muted);font-size:.82rem;margin-top:3px;border-left:2px solid var(--q-soft);padding-left:7px}
+.points .asked{color:var(--muted);font-size:.84rem;font-style:italic;margin-top:2px}
+.lastq{display:grid;gap:1px;text-align:left;margin:0 16px 8px;padding:7px 10px;border:0;border-left:3px solid var(--q);border-radius:6px;background:var(--q-soft);color:var(--text-main, inherit);font:inherit;width:calc(100% - 32px)}
+.lastq .lqh{font:700 .64rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--q)}
+.lastq .lqh time{font-weight:600;margin-left:4px}
+.lastq .lqq{font-weight:600;font-size:.86rem;color:var(--q);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lastq .lqc{font-size:.8rem;color:var(--muted);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.lastq:hover .lqc{-webkit-line-clamp:3}
+.linkbtn{border:0;background:none;padding:0;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}
 .points .meta{font-size:.74rem;color:var(--muted);margin-top:2px;display:flex;gap:8px;align-items:center}
 .points .slchip{border:0;background:var(--accent-soft);color:var(--accent);font:700 .68rem var(--mono);border-radius:4px;padding:1px 5px}
 .pact{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
@@ -903,12 +917,13 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
      <div class="lv-split" id="lvSplit" role="separator" aria-orientation="horizontal" aria-label="Resize summary and note helper" tabindex="0"></div>
      <div class="lv-bot" id="lvBot">
       <div class="lv-h"><b>Note helper</b><span class="lvdot" id="aidDot" title="Listening"></span><span class="sp"></span><span class="aidn" id="aidCount"></span></div>
+      <button class="lastq" id="lastQ" hidden title="Show this question in the list"><span class="lqh">Last question <time id="lastQt"></time></span><span class="lqq" id="lastQq"></span><span class="lqc" id="lastQc"></span></button>
       <div class="aidchips" id="aidChips" role="group" aria-label="Show">
-        <button data-k="all" aria-pressed="true">All</button><button data-k="point" aria-pressed="false">Points</button><button data-k="quote" aria-pressed="false">Quotes</button><button data-k="source" aria-pressed="false">Books</button><button data-k="term" aria-pressed="false">Terms</button><button data-k="example" aria-pressed="false">Examples</button><button data-k="question" aria-pressed="false">Questions</button>
+        <button data-k="all" aria-pressed="true">All</button><button data-k="point" aria-pressed="false">Points</button><button data-k="quote" aria-pressed="false">Quotes</button><button data-k="source" aria-pressed="false">Books</button><button data-k="term" aria-pressed="false">Terms</button><button data-k="word" aria-pressed="false" title="Difficult words with a dictionary definition">Words</button><button data-k="example" aria-pressed="false">Examples</button><button data-k="question" aria-pressed="false">Questions</button>
       </div>
       <div class="aidscroll" id="aidScroll">
         <ol class="points aids" id="aids" aria-live="polite"></ol>
-        <p class="empty" id="emptyAids">While the lecturer talks, key points, quotes, ideas from books and authors, key terms, examples, questions and due dates appear here, newest at the bottom. Press <b>+</b> to put one in your notes.</p>
+        <p class="empty" id="emptyAids">While the lecturer talks, key points, quotes, ideas from books and authors, key terms, difficult words with their definitions, examples, questions (with what they were about) and due dates appear here, newest at the bottom. Press <b>+</b> to put one in your notes.</p>
       </div>
      </div>
     </div>
@@ -989,7 +1004,10 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
       <div class="field"><span class="lab">Recording</span><div class="ctl"><label class="check"><input type="checkbox" id="pDiscreet"> Discreet recording</label><small>The record button becomes a small grey circle with no red, no words, no timer and no animation. While recording, the circle is filled in; point at it to see the time. Also on the record button's right-click menu.</small></div></div>
       <div class="field"><label for="aid_every">Note helper</label><div class="ctl"><select id="aid_every">
         <option value="1">Instant + AI every minute</option><option value="2">Instant + AI every 2 minutes</option><option value="5">Instant + AI every 5 minutes</option><option value="0">Instant only (no AI)</option>
-      </select><small>Key points, quotes, books and authors, terms and examples are spotted the moment they're said. The AI then tidies them and adds what the quick check missed. With a local AI, a longer gap keeps your Mac lighter.</small></div></div>
+      </select><small>Key points, quotes, books and authors, terms, difficult words, examples and questions are spotted the moment they're said. The AI then tidies them, adds what the quick check missed, and restates each question with what it was about. With a local AI, a longer gap keeps your Mac lighter.</small></div></div>
+      <div class="field"><label for="hard_words">Difficult words</label><div class="ctl"><select id="hard_words">
+        <option value="fewer">Only rare words</option><option value="normal">Rare and uncommon words</option><option value="more">Also less common words</option><option value="off">Off</option>
+      </select><small>Words an average English speaker may not know are listed with a dictionary definition from your Mac's Dictionary (the AI fills in any it doesn't have). Remove one with ✕ and it won't be flagged again. <button type="button" class="linkbtn" id="forgetKnown">Show removed words again</button><span id="forgetState"></span></small></div></div>
     </section>
     <section data-psec="appearance" hidden>
       <div class="field"><span class="lab">Appearance</span><div class="ctl"><div class="seg3" id="pTheme"><button data-v="system">System</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div></div></div>
@@ -2091,16 +2109,17 @@ function appendToNotes(texts, t, sl){
    INSPECTOR: live notes, ask, transcript, slides
    ====================================================================== */
 /* live notes */
-const KIND_TAG = {question: 'Question', deadline: 'Due', point: 'Key point', quote: 'Quote', source: 'Book · author', term: 'Term', example: 'Example'};
+const KIND_TAG = {question: 'Question', deadline: 'Due', point: 'Key point', quote: 'Quote', source: 'Book · author', term: 'Term', word: 'Word', example: 'Example'};
 function aidLines(p){
   const det = (p.detail || '').trim();
   switch (p.kind){
-    case 'question': return ['Q: ' + p.title, 'A: ' + det.replace(/^Answer:\s*/i, '')];
+    case 'question': return ['Q: ' + (p.brief || p.title) + (p.ctx ? ` *(while discussing: ${p.ctx.replace(/\s+/g, ' ').slice(0, 160)})*` : ''), 'A: ' + det.replace(/^Answer:\s*/i, '')];
     case 'deadline': return ['- [ ] ' + p.title];
     case 'quote': return [`> “${p.title.replace(/^["“]|["”]$/g, '')}”`].concat(det ? [`> — ${det}`] : []);
     case 'source': { const [who, work] = det.split(' · '); const by = [who ? `**${who}**` : '', work ? `*${work}*` : ''].filter(Boolean).join(', ');
       return [`- ${by ? by + ': ' : ''}${p.title}`]; }
-    case 'term': return [`- ==${p.title}==: ${det}`];
+    case 'term': return [`- ==${p.title}==: ${det}` + (p.dict ? ` *(dictionary: ${p.dict})*` : '')];
+    case 'word': return [`- ==${p.title}==${p.pos ? ` *(${p.pos})*` : ''}: ${det}`];
     case 'example': return ['> [!EXAMPLE]', '> ' + p.title];
     case 'point': return [`- **${p.title}**`];
     default: return [`- ${p.title}${det ? ': ' + det : ''}`];
@@ -2114,9 +2133,25 @@ function pointEl(p, cls){
   const t = document.createElement('div'); t.className = 't';
   if (KIND_TAG[p.kind]){ const g = document.createElement('span'); g.className = 'tag'; g.textContent = KIND_TAG[p.kind]; t.append(g); }
   if (p.kind === 'quote'){ const q = document.createElement('span'); q.className = 'qtxt'; q.textContent = p.title.replace(/^["“]|["”]$/g, ''); t.append(q); }
+  else if (p.kind === 'word'){ const w = document.createElement('span'); w.className = 'wd'; w.textContent = p.title; t.append(w);
+    if (p.pos){ const ps = document.createElement('span'); ps.className = 'pos'; ps.textContent = p.pos; t.append(ps); } }
+  else if (p.kind === 'question' && p.brief) t.append(document.createTextNode(p.brief));
   else t.append(document.createTextNode(p.title));
   body.append(t);
-  if (p.detail && p.kind === 'source'){
+  const line = (cls, label, text) => { const d = document.createElement('div'); d.className = cls;
+    if (label){ const l = document.createElement('span'); l.className = 'dl'; l.textContent = label; d.append(l); }
+    d.append(document.createTextNode(text)); body.append(d); };
+  if (p.kind === 'word'){
+    if (p.detail) line('def', '', p.detail);
+    else { const d = document.createElement('div'); d.className = 'pending'; d.textContent = S.cfg.ai_ready ? 'Definition coming…' : 'No definition in your Mac’s Dictionary'; body.append(d); }
+  } else if (p.kind === 'term'){
+    if (p.detail) line('d', 'In class', p.detail);
+    if (p.dict) line('def', 'Dictionary', p.dict);
+  } else if (p.kind === 'question'){
+    if (p.brief && p.brief !== p.title) line('asked', '', '“' + p.title + '”');
+    if (p.ctx) line('ctx', 'Context', p.ctx);
+    if (p.detail) line('d', 'Answer', p.detail.replace(/^Answer:\s*/i, ''));
+  } else if (p.detail && p.kind === 'source'){
     const [who, work] = p.detail.split(' · '); const d = document.createElement('div'); d.className = 'd';
     if (who){ const w = document.createElement('span'); w.className = 'who'; w.textContent = who; d.append(w); }
     if (work){ if (who) d.append(document.createTextNode(', ')); const w = document.createElement('span'); w.className = 'work'; w.textContent = work; d.append(w); }
@@ -2125,6 +2160,7 @@ function pointEl(p, cls){
   else if (p.detail){ const d = document.createElement('div'); d.className = 'd'; d.textContent = p.detail; body.append(d); }
   const meta = document.createElement('div'); meta.className = 'meta';
   if (p.sl && slLabel(p.sl)){ const c = document.createElement('button'); c.className = 'slchip'; c.textContent = slLabel(p.sl); c.title = 'Show ' + slideName(p.sl); c.onclick = () => openSlide(p.sl.doc, p.sl.page); meta.append(c); }
+  if (p.dsrc && (p.kind === 'word' || p.kind === 'term')){ const r = document.createElement('span'); r.textContent = p.dsrc === 'dictionary' ? 'Mac Dictionary' : 'AI definition'; r.title = p.dsrc === 'dictionary' ? 'From the Dictionary on your Mac' : 'Written by the AI; check it if it matters'; meta.append(r); }
   if (p.rev > 0){ const r = document.createElement('span'); r.textContent = p.rev > 1 ? `refined ${p.rev}×` : 'refined'; r.title = 'Updated as the lecturer explained more'; meta.append(r); }
   else if (p.by === 'ai' && AID_K.includes(p.kind)){ const r = document.createElement('span'); r.textContent = 'AI'; r.title = 'Picked out by the AI'; meta.append(r); }
   if (meta.childNodes.length) body.append(meta);
@@ -2132,7 +2168,8 @@ function pointEl(p, cls){
   const add = document.createElement('button'); add.className = 'add'; add.textContent = '+'; add.title = 'Copy into my notes'; add.setAttribute('aria-label', 'Copy into my notes');
   add.onclick = () => { appendToNotes(aidLines(p), p.t, p.sl); add.textContent = '✓'; add.classList.add('done'); };
   const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'Remove'; del.setAttribute('aria-label', 'Remove this live note');
-  del.onclick = () => post('/point/delete', {kid: S.kid, id: p.id});
+  if (p.kind === 'word'){ del.title = 'I know this word: remove it and don’t flag it again'; del.setAttribute('aria-label', 'I know this word'); }
+  del.onclick = () => post('/point/delete', Object.assign({kid: S.kid, id: p.id}, p.kind === 'word' ? {known: p.title} : {}));
   act.append(add, del);
   li.append(tm, body, act);
   li.addEventListener('animationend', () => li.classList.remove('new', 'upd'), {once: true});
@@ -2220,7 +2257,7 @@ function renderLive(initial){
   renderOnSlide();
 }
 /* note helper (bottom of Live) */
-const AID_K = ['point', 'quote', 'source', 'term', 'example'];
+const AID_K = ['point', 'quote', 'source', 'term', 'word', 'example'];
 const FEED_K = AID_K.concat(['question', 'deadline']);
 function aidFilter(){ return ui().aidFilter || 'all'; }
 function renderAids(initial){
@@ -2241,9 +2278,16 @@ function renderAids(initial){
     ol.append(li);
   }
   $('emptyAids').hidden = items.length > 0;
+  const lq = items.filter(p => p.kind === 'question').pop();
+  $('lastQ').hidden = !lq || f === 'question';
+  if (lq){ $('lastQ').dataset.id = lq.id; $('lastQt').textContent = fmt(lq.t); $('lastQq').textContent = lq.brief || lq.title;
+    $('lastQc').textContent = lq.ctx ? 'While discussing: ' + lq.ctx : ''; }
   $('aidCount').textContent = items.length ? `${items.length} item${items.length > 1 ? 's' : ''}` : '';
   if (stick) box.scrollTop = box.scrollHeight;
 }
+$('lastQ').onclick = () => { const id = $('lastQ').dataset.id; if (aidFilter() !== 'all' && aidFilter() !== 'question'){ savePrefs({aidFilter: 'all'}); renderAids(); }
+  const li = $('aids').querySelector(`li[data-id="${id}"]`); if (li){ li.scrollIntoView({block: 'center'}); flashEl(li); } };
+$('forgetKnown').onclick = async () => { await post('/settings', {forget_known: 1}); $('forgetState').textContent = ' Done.'; };
 $('aidChips').onclick = e => { const b = e.target.closest('button'); if (!b) return; savePrefs({aidFilter: b.dataset.k}); renderAids(); };
 /* drag the line between Summary and Note helper */
 function setLiveSplit(f){ f = Math.max(0.15, Math.min(0.85, f)); $('sumPane').style.setProperty('--lv-top', (f * 100).toFixed(1) + '%'); return f; }
@@ -3164,7 +3208,7 @@ prefs.addEventListener('click', e => {
 });
 async function openPrefs(which){
   const c = S.cfg; removeKeys = []; $('testState').textContent = ''; $('pullState').textContent = '';
-  ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every'].forEach(k => { if (c[k] != null) $(k).value = String(c[k]); });
+  ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => { if (c[k] != null) $(k).value = String(c[k]); });
   if (c.whisper && ![...$('whisper').options].some(o => o.value === c.whisper)) $('whisper').add(new Option(c.whisper, c.whisper, true, true));
   KEYS.forEach(k => { const has = c.has_key && c.has_key[k]; const inp = $('key_' + k); inp.value = '';
     inp.placeholder = has ? 'Key saved (type to replace)' : PH[k]; prefs.querySelector(`[data-remove="${k}"]`).hidden = !has; });
@@ -3185,7 +3229,7 @@ $('setCancel').onclick = () => prefs.close();
 function settingsBody(){
   const keys = {}; KEYS.forEach(k => keys[k] = $('key_' + k).value.trim());
   const b = {keys, remove_keys: removeKeys, device: $('device').value};
-  ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every'].forEach(k => b[k] = $(k).value);
+  ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => b[k] = $(k).value);
   b.auto_update_check = $('pAutoUpd').checked;
   b.lesson_ai = $('lesson_ai').value; b.lesson_model = $('lesson_model').value;
   if ($('ghToken').value.trim()) b.github_token = $('ghToken').value.trim();

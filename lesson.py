@@ -25,7 +25,7 @@ LESSON_RULES = """FORMAT RULES (MyNotes Markdown), follow exactly:
 2. One "# Title" (same as the front matter title), then a "> [!IMPORTANT]" callout with the lesson's main idea in 1-2 sentences.
 3. "## Sections" in the order the lecturer taught, with headings of 2-6 words that say something (not "Introduction" or "Main Point 2"), each short enough for one slide. "###" only for real sub-points; never skip heading levels.
 4. Each section opens with one or two plain sentences on what it's about and why it matters, then 3-6 bullets, one idea each, key phrase in **bold**.
-5. Mark key terms with ==term== on first use, and end the file with a "## Glossary" of "- term: meaning" lines (3-8 real terms, spelled exactly as marked).
+5. Mark key terms with ==term== on first use, and end the file with a "## Glossary" of "- term: meaning" lines (3-8 real terms, spelled exactly as marked), followed by any DIFFICULT WORD items as "- word (part of speech): plain dictionary meaning".
 6. Bible references: standard form with chapter and verse (e.g. "Eph 2:8-9"). Speech recognition writes them as words ("john three sixteen"); convert them. For a passage central to a section, a code block with language "verse" containing only the reference. Never quote Bible text.
 7. Only when the content calls for it, never as decoration: a heading containing "Steps" with a numbered list for a real process; "::: tabs" with "### Name" blocks and ":::" when views are compared; one ```mermaid diagram when a relationship or sequence is easier to see (labels with parentheses, colons or quotes in double quotes); <details><summary>Title</summary> ... </details> for optional depth; "Q:"/"A:" only for questions the lecturer actually asked.
 8. End with "## Summary" (3-5 takeaways), then the Glossary. No Review section and no questions at the end.
@@ -98,9 +98,13 @@ def lesson_material(s, sources, cap_words):
     docs = s.get("docs", [])
     wrote = [((l.get("t") or 0), l["text"] + "", l.get("sl")) for l in s.get("lines", []) if l.get("text", "").strip()]
     lead = {"question": "QUESTION ASKED: ", "deadline": "DUE: ", "quote": "QUOTE: ", "source": "FROM A BOOK/AUTHOR: ",
-            "term": "KEY TERM: ", "example": "EXAMPLE: ", "point": "KEY POINT: "}
+            "term": "KEY TERM: ", "word": "DIFFICULT WORD (put in the Glossary with this meaning): ",
+            "example": "EXAMPLE: ", "point": "KEY POINT: "}
     points = [(p["t"], lead.get(p["kind"], "") + p["title"]
-               + (f" — {p['detail']}" if p.get("detail") else ""), p.get("sl")) for p in s["points"]]
+               + (f" — {p['detail']}" if p.get("detail") else "")
+               + (f" (dictionary: {p['dict']})" if p.get("dict") else "")
+               + (f" [asked while discussing: {p['ctx']}]" if p["kind"] == "question" and p.get("ctx") else ""),
+               p.get("sl")) for p in s["points"]]
     segs = s["segs"]
     trimmed = False
     if "heard" in sources and word_count(segs) > cap_words:
@@ -545,7 +549,7 @@ def export_class(s, course_name, class_name, show=True):
     for b in s.get("blocks", []):
         if not b.get("quiet"):
             summ += f"### {fmt(b['start'])}–{fmt(b['end'])} · {b['title']}\n\n{b['summary']}\n\n" + "".join(f"- {d}\n" for d in b.get("details", [])) + "\n"
-    icon = {"question": "❓ ", "deadline": "⚠ ", "point": ""}
+    icon = {"question": "❓ ", "deadline": "⚠ ", "point": "", "word": "📖 "}
     pts = "\n".join(
         f"- **[{fmt(p['t'])}{_slide_tag(p.get('sl'), docs)}] {icon.get(p['kind'], '')}{p['title']}**"
         + (f" — {p['detail']}" if p.get("detail") else "") for p in s["points"]) or "_none_"

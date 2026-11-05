@@ -67,6 +67,8 @@ DEFAULTS = dict(
     language="en",
     period=10,  # minutes per live summary
     aid_every=2,  # minutes between AI passes of the live note helper (0 = instant detection only)
+    hard_words="normal",  # difficult words in the note helper: off | fewer | normal | more
+    known_words=[],  # difficult words the student removed ("I know this one"): never flagged again
     device=None,
     ui=dict(UI_DEFAULTS),
 )
@@ -428,6 +430,13 @@ class App:
 
     def delete_point(self, data):
         kid, pid = data.get("kid") or self.hub.kid, data.get("id")
+        if data.get("known"):  # a difficult word the student already knows: don't flag it again in any class
+            w = str(data["known"]).strip().lower()[:60]
+            kw = self.hub.cfg.setdefault("known_words", [])
+            if w and w not in kw:
+                kw.append(w)
+                del kw[:-2000]
+                save_json(CFG_PATH, self.hub.cfg)
         self.hub.update_class(kid, lambda s: s.__setitem__("points", [p for p in s["points"] if p["id"] != pid]))
         if kid == self.hub.kid:
             self.hub.emit("points", {"add": [], "update": [], "remove": [pid], "topic": self.hub.s["topic"]})
@@ -669,6 +678,10 @@ class App:
             hub.cfg["period"] = max(1, min(60, int(data["period"])))
         if str(data.get("aid_every", "")).isdigit():
             hub.cfg["aid_every"] = max(0, min(10, int(data["aid_every"])))
+        if data.get("hard_words") in ("off", "fewer", "normal", "more"):
+            hub.cfg["hard_words"] = data["hard_words"]
+        if data.get("forget_known"):
+            hub.cfg["known_words"] = []
         for which, field in (("claude", "api_key"), ("gemini", "gemini_key"), ("groq", "groq_key")):
             key = (data.get("keys") or {}).get(which, "").strip()
             if key:

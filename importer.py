@@ -498,21 +498,22 @@ class Importer:
 
     def _aid_window(self, kid, s, segs, start, end):
         from ai import ask_ai, parse_json
-        from live import AID_PROMPT
+        from live import AID_PROMPT, aid_extra
         from words import chunk_text
 
         hub = self.hub
-        have = [p for p in s["points"] if p["kind"] in ("point", "quote", "source", "term", "example")
+        have = [p for p in s["points"] if p["kind"] in ("point", "quote", "source", "term", "word", "example")
                 and start - 60 <= p["t"] < end]
         have_txt = ("\nAlready noted (don't repeat):\n" + "\n".join(f"- {p['title']}" for p in have[-12:])) if have else ""
         course = hub.course_name(kid)
+        q_txt, d_txt = aid_extra(s, start, end)
         prompt = AID_PROMPT.format(course=f" ({course})" if course else "", earlier="", start=fmt(start), end=fmt(end),
-                                   text=chunk_text(segs), have=have_txt)
+                                   text=chunk_text(segs), have=have_txt, questions=q_txt, define=d_txt)
         try:
-            out = parse_json(ask_ai(hub.cfg, prompt, 700, json_mode=True))
+            out = parse_json(ask_ai(hub.cfg, prompt, 1100, json_mode=True))
         except Exception:
             return
-        self.app.summ.merge_aids(kid, s, out.get("items") or [], start, end, segs)
+        self.app.summ.merge_aids(kid, s, out.get("items") or [], start, end, segs, out)
 
     def _transcribe(self, kid, path):
         tx = self.app.tx

@@ -10,7 +10,7 @@ STOP = set(
     "slide page today let's we're you're it's that's there's i'm don't".split()
 )
 WORD = re.compile(r"[a-zà-ɏ'’]+")
-SENT = re.compile(r"(?<=[.?!])\s+")
+SENT = re.compile(r"(?<=[.?!])(?<!\b[A-Z]\.)(?<!\bDr\.)(?<!\bMr\.)(?<!\bMs\.)(?<!\bSt\.)(?<!\bMrs\.)(?<!\bvs\.)\s+")
 
 
 def fmt(sec):
@@ -164,7 +164,7 @@ QUOTE_CUE = re.compile(
     r"put it this way|in (?:his|her|their) (?:own )?words|the saying goes|as the saying|there'?s a saying|"
     r"a line from|the line)\b", re.I)
 TITLE_AFTER = re.compile(r"\b(?:book|article|essay|paper|work|classic|novel|poem|commentary)(?: called| titled| named)?,?\s+"
-                         r"[\"“']?((?:[A-Z][\w'’:-]*|of|the|and|in|on|a|to|for)(?:\s+(?:[A-Z][\w'’:-]*|of|the|and|in|on|a|to|for)){0,7})")
+                         r"[\"“']?((?:[A-Z][\w'’:-]*|of|the|and|in|on|a|to|for)(?:\s+(?:[A-Z][\w'’:-]*|of|the|and|in|on|a|to|for|by)){0,7})")
 POINT_CUE = re.compile(
     r"\b(?:the (?:main|key|big|central|most important|crucial|real|whole) (?:point|idea|thing|question|takeaway|lesson|"
     r"issue|problem|message)|the point (?:is|here is|i'?m making)|(?:this|that|it) is (?:really |so |very |absolutely )?"
@@ -208,7 +208,7 @@ def _work(x):
     if m:
         t = m.group(1).strip(" ,.\"”'")
         words = t.split()
-        while words and words[-1].lower() in ("of", "the", "and", "in", "on", "a", "to", "for"):
+        while words and words[-1].lower() in ("of", "the", "and", "in", "on", "a", "to", "for", "by"):
             words.pop()
         if words and words[0][0].isupper():
             return " ".join(words)[:80]
