@@ -251,6 +251,8 @@ A good lesson reads like a clear, friendly study page, not a form to fill in.
 - **Keep the life in it.** The lecturer's own striking words, a story or example they told, a quote with who said it, a book with its *title*: these are what make notes memorable. Keep them.
 - **Cut the noise.** Leave out greetings, attendance, tech trouble, "any questions?", repeated points, filler and anything said only to fill time.
 - **Extras only when they help.** A diagram when there's a real relationship or sequence to see; steps when there's a real process; tabs when two views are compared; a verse block for a passage that's central. Never add one just to have it.
+- **Keep the teacher's rules.** When the teacher gives a rule or a simplified way to remember something, put it in its own `> [!TIP]` box: **Rule:** in the teacher's words, *Why:* in a sentence or two, and *Examples:* (a small table for a chart or paradigm).
+- **Review what came before.** When today builds on an earlier class (contract adjectives before contract verbs, say), add a short `> [!NOTE]` **Review:** box with the key details from that class, just before the new material.
 - **Short beats long.** A lesson should read in 5–10 minutes. Five clear sections beat ten thin ones.
 
 ## Full Lesson Template
@@ -337,6 +339,8 @@ MAKE IT READABLE AND LIVELY:
 - When an idea comes from a book or author, name them: Author, *Book Title*.
 - Use "> [!WARNING]" for a mistake or danger the lecturer warned about; "> [!TIP]" for a practical application; "> [!NOTE]" for useful background.
 - Where a short detail from the material makes a point clearer (a date, a name, what a word means, the context), add it in a few words.
+- Every rule or simplified rule the teacher gives gets its own "> [!TIP]" callout: "**Rule: name.**" in the teacher's words, "*Why:*" in 1-2 sentences, "*Examples:*" from the lecture (a small table for a chart or paradigm).
+- Where today builds on an earlier class, a short "> [!NOTE]" callout "**Review: topic** (from class name)" with the key details, before the new material.
 
 USE THESE ONLY WHEN THE CONTENT CALLS FOR THEM, never as decoration:
 - A heading containing "Steps" with a numbered list, for a real process the lecturer gave.

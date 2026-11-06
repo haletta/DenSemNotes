@@ -88,7 +88,22 @@ STYLE = """HOW THE LESSON SHOULD READ (a clear, lively study page the student en
 - Add a short clarifying detail from the material (a date, a name, what a word means, the context) where it makes a point easier to follow.
 - Cut the noise: greetings, attendance, tech trouble, housekeeping, "any questions?", repeats (merge them), filler and vague statements.
 - Lines marked TEACHING QUESTION: use one only if its answer teaches something; write the answer as a bullet in that section. Never list the questions heard in class, and don't turn the transcript's questions into Q:/A: pairs.
+- THE TEACHER'S RULES: whenever the lecturer gives a rule, a simplified rule, a pattern, a shortcut, a memory aid or an "always/never" (for example how contract adjectives contract, or which ending goes with which case), keep it as its own callout in that section:
+  > [!TIP]
+  > **Rule: <short name>.** The rule in the teacher's own simplified words, one or two lines.
+  > *Why:* one or two plain sentences on how or why it works, as the teacher explained it.
+  > *Examples:* the teacher's examples, each as "form → result (meaning)"; use a small Markdown table under the callout when the teacher gave a chart or paradigm.
+  Never drop a rule the teacher stated, never shorten it into a vague bullet, and never invent examples the sources don't give (an example from the slides or the student's notes is fine).
 - Prefer fewer, fuller sections over many thin ones."""
+
+
+EARLIER = """(E) WHAT THE TEACHER TAUGHT IN EARLIER CLASSES OF THIS COURSE (the student's lessons and notes from those classes, the parts closest to today's lecture). Use them for a short review of what today builds on:
+- Where today's lecture uses, refers back to ("remember…", "like we saw last week") or builds on something from these classes (for example contract adjectives before contract verbs), add a short review callout in that section, just before the new material:
+  > [!NOTE]
+  > **Review: <topic>** (from <class name>). The important details in 2-4 lines: the rule, the forms or the key point, and one example from the earlier class.
+- At most 4 reviews, only for things today really needs. Don't re-teach the earlier class, don't add a review for a topic today doesn't touch, and keep today's lecture the main content.
+- Use only what is below for the review; don't invent anything. If today's lecture changes or corrects something from before, say so in the review.
+"""
 
 
 OVERRIDES = """THE STUDENT'S CHANGES (these win over anything above):
@@ -225,6 +240,8 @@ def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500
         if blocks:
             parts.append("(D) TEXT OF THE SLIDES the notes are linked to. Use it to order the sections the way the "
                          "slides go and to spell terms correctly; don't copy slides wholesale.\n" + "\n".join(blocks))
+    if opts.get("earlier"):
+        parts.append(EARLIER + "\n" + opts["earlier"])
     if "wrote" in sources and "heard" in sources:
         parts.append(
             "HOW TO COMBINE THE WRITTEN AND HEARD VERSIONS:\n"
@@ -468,6 +485,55 @@ def slide_links(lines, s, page_texts):
     return out
 
 
+def earlier_material(hub, kid, s, doc_pages, budget):
+    """The parts of the course's earlier classes closest to this one: their lessons and my notes first, then their
+    summaries, then their transcript. Oldest class first, each passage labelled with its class."""
+    from ask import class_passages, best
+    from store import load_class
+    lib = hub.lib
+    k = lib.klass(kid)
+    if not k:
+        return ""
+    older = [x for x in reversed(lib.classes_in(k["course"]))
+             if x["id"] != kid and (x["date"], x.get("created", 0)) < (k["date"], k.get("created", 0))]
+    if not older:
+        return ""
+    passages, when = [], {}
+    for i, x in enumerate(older[-12:]):  # the last 12 classes are plenty
+        try:
+            ks = load_class(x["id"])
+        except Exception:
+            continue
+        when[x["id"]] = i
+        label = x["name"] + (f" · {x['date']}" if x.get("date") and x["date"] not in x["name"] else "")
+        for p in class_passages(x["id"], ks, "", label):
+            if p["kind"] == "heard" and p["text"].startswith("Asked in class"):
+                continue
+            if p["kind"] == "note" and ks.get("formatted"):
+                p["weight"] = 1.5  # the finished lesson from that class is the clearest record
+            passages.append(p)
+    if not passages:
+        return ""
+    today = " ".join([l.get("text", "") for l in s.get("lines", [])]
+                     + [(s.get("overall") or {}).get("summary", "")]
+                     + [b.get("title", "") + " " + b.get("summary", "") for b in s.get("blocks", [])]
+                     + [t for _, pages in doc_pages for t in pages]
+                     + [x["text"] for x in s.get("segs", [])])
+    today = " ".join(today.split()[:6000])
+    chosen = best(passages, today, budget, limit=18)
+    chosen = [c for c in chosen if c.get("score", 0) > 0.05]
+    if not chosen:
+        return ""
+    chosen.sort(key=lambda c: (when.get(c["kid"], 0), c.get("t") or 0))
+    out, last = [], None
+    for c in chosen:
+        if c["class"] != last:
+            out.append(f"\n[{c['class']}]")
+            last = c["class"]
+        out.append(f"- ({ {'note': 'lesson/notes', 'summary': 'summary', 'heard': 'heard', 'transcript': 'transcript'}.get(c['kind'], c['kind'])}) {c['text']}")
+    return "\n".join(out).strip()
+
+
 class LessonBuilder:
     def __init__(self, hub):
         self.hub = hub
@@ -504,6 +570,12 @@ class LessonBuilder:
                 try:
                     # class notes always get the whole transcript and every slide deck and document, for live and
                     # imported classes alike, whichever AI writes them
+                    if hub.cfg["ui"].get("reviewEarlier", True):
+                        try:
+                            opts = {**opts, "earlier": earlier_material(hub, kid, s, doc_pages,
+                                                                        2500 if lesson_budget(hub.cfg) >= 10000 else 600)}
+                        except Exception:
+                            pass  # a review of earlier classes is a bonus; never let it stop the lesson
                     prompt = build_prompt(s, opts, FULL, lambda sl: hub.slide_text(kid, sl), doc_pages, FULL)
                     md = clean_lesson(ask_lesson(hub.cfg, prompt, 4000), opts)
                     if md.count("\n") < 8:

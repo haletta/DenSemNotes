@@ -41,7 +41,7 @@ UI_DEFAULTS = {
     "font": "sans", "size": 17, "lh": 1.65, "width": 700,
     "marks": False, "gutter": True, "spell": True, "autocorrect": True, "follow": False,
     "tools": ["h2", "h3", "bold", "term", "bul", "num", "todo", "callout", "qa", "verse", "link", "spell", "format"],
-    "blend": "notes", "bible": "", "readLessons": True, "slideLayout": False,
+    "blend": "notes", "bible": "", "readLessons": True, "slideLayout": False, "reviewEarlier": True,
     "filter": None,
     "keys": {},   # shortcut id -> combo, only the ones I changed
     "open": {},   # course id -> expanded in the sidebar

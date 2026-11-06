@@ -82,6 +82,10 @@ Turns the note itself into your MyNotes template: front matter, one title, secti
 
 **Use the slides as the layout** (in the same menu, in Preferences › Editor, and in the Import window): when the class has slides, each slide becomes a section in slide order. The AI starts from what the slide says, expands it with what the lecturer said while it was showing, and puts your notes under the slide you wrote them on. It's off unless you tick it.
 
+**The teacher's rules** are kept in their own Tip box: the rule in the teacher's simplified words, *Why* it works, and the teacher's *Examples* (a small table for a chart or paradigm).
+
+**Review what earlier classes taught** (on by default; same menu and Preferences › Editor): the class-notes AI also reads the parts of your earlier classes in the course closest to today's lecture. Where today builds on them (contract adjectives before contract verbs, say), it adds a short Review box with the key details from that class, just before the new material.
+
 **New lesson from transcript & slides** (in the Format as lesson menu, the Lesson & export menu, or right-click any class in the list) writes a fresh lesson from what a class already has: its transcript, slides and documents, plus the notes you wrote yourself (as they were before any earlier formatting, never from an earlier lesson). Use it to remake a lesson in the new style or after adding slides. The current lesson is kept: **Restore** brings it back.
 
 There's no extra window: the formatted lesson replaces the note in the editor. A bar above it shows the upload checks, **Save .md** and **Restore original**. Your original note is always kept.

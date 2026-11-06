@@ -1023,6 +1023,8 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
         <option value="notes">Mostly my notes</option><option value="balanced">Balanced</option><option value="lecture">Mostly the lecture</option><option value="only_notes">Only my notes</option>
       </select><small>How your writing and the lecture are mixed when a note is turned into your MyNotes template.</small>
         <label class="check"><input type="checkbox" id="pSlideLayout"> Use the slides as the layout</label>
+        <label class="check"><input type="checkbox" id="pReviewEarlier"> Review what earlier classes taught</label>
+        <small>Short reviews from earlier classes in the course (like contract adjectives) where today's lecture builds on them.</small>
         <small>When a class has slides, each slide becomes a section, expanded with what the lecturer said and your notes.</small></div></div>
       <div class="field"><label for="pBible">Bible translation</label><div class="ctl"><input id="pBible" placeholder="e.g. NIV (optional)" style="max-width:140px"></div></div>
       <div class="field"><span class="lab">Class note template</span><div class="ctl">
@@ -2991,6 +2993,9 @@ function formatMenu(anchor){
     {label: 'Use the slides as the layout', check: !!ui().slideLayout, disabled: !readyDocs().length,
      act: () => { const on = !ui().slideLayout; savePrefs({slideLayout: on}); syncPrefControls();
        toast(on ? 'Lessons will follow the slides, expanded with the lecture and your notes.' : 'Lessons will follow the order of the lecture.', 3500); }},
+    {label: 'Review what earlier classes taught', check: ui().reviewEarlier !== false,
+     act: () => { const on = ui().reviewEarlier === false; savePrefs({reviewEarlier: on}); syncPrefControls();
+       toast(on ? 'Lessons will review what earlier classes taught, where today builds on it.' : 'Lessons will use only this class.', 3500); }},
     '-',
     {label: 'Restore my original notes', disabled: !(S.cls.versions || []).length, act: restoreOriginal},
     {label: 'Save lesson as .md file', kbd: scLabel('saveMd'), disabled: !S.cls.formatted, act: saveLessonMd},
@@ -3160,7 +3165,7 @@ function syncPrefControls(){
   $('pLh').value = u.lh || 1.65; $('pLhV').textContent = Number(u.lh || 1.65).toFixed(2);
   $('pWidth').value = u.width || 700; $('pWidthV').textContent = (u.width || 700) + ' px';
   $('pAuto').checked = u.autocorrect !== false; $('pSpell').checked = u.spell !== false; $('pMarks').checked = !!u.marks; $('pGutter').checked = u.gutter !== false;
-  $('pBlend').value = u.blend || 'notes'; $('pSlideLayout').checked = !!u.slideLayout; if (document.activeElement !== $('pBible')) $('pBible').value = u.bible || '';
+  $('pBlend').value = u.blend || 'notes'; $('pSlideLayout').checked = !!u.slideLayout; $('pReviewEarlier').checked = u.reviewEarlier !== false; if (document.activeElement !== $('pBible')) $('pBible').value = u.bible || '';
   const on = new Set(u.tools || []);
   $('pTools').innerHTML = TOOL_GROUPS.flat().map(t => `<label class="check"><input type="checkbox" data-tool="${t}"${on.has(t) ? ' checked' : ''}> ${esc(TOOLS[t].label)}</label>`).join('');
 }
@@ -3176,6 +3181,7 @@ $('pMarks').onchange = e => setUi({marks: e.target.checked});
 $('pGutter').onchange = e => setUi({gutter: e.target.checked});
 $('pBlend').onchange = e => setUi({blend: e.target.value});
 $('pSlideLayout').onchange = e => setUi({slideLayout: e.target.checked});
+$('pReviewEarlier').onchange = e => setUi({reviewEarlier: e.target.checked});
 $('pBible').onchange = e => setUi({bible: e.target.value.trim()});
 $('pTools').onchange = () => { const tools = [...$('pTools').querySelectorAll('input:checked')].map(i => i.dataset.tool); savePrefs({tools}); renderToolbar(); };
 function showPanel(){ prefs.querySelectorAll('.panel').forEach(p => p.hidden = p.dataset.for !== $('provider').value); if ($('provider').value === 'ollama') checkOllama(); }
