@@ -9,7 +9,7 @@ import traceback
 import numpy as np
 
 from ai import Offline, ask_ai, ai_ready, parse_json
-from store import MODELS
+from store import HEBREW_TERMS, MODELS, course_taught
 import dictionary
 from words import (DEADLINE, STOP, aids_in, chunk_text, content_words, fmt, key_sentences, overlap, questions_in,
                    sentences, similarity, to_sec, word_count)
@@ -388,6 +388,7 @@ class Summarizer:
             s["q_idx"] = len(s["segs"])
             level = str(self.hub.cfg.get("hard_words") or "normal")
             cfg = self.hub.cfg
+            hebrew = course_taught(self.hub.course_of(kid)) == "he"
             first = len(s["segs"]) - len(segs)
             for i, seg in enumerate(segs):
                 for q in (questions_in(seg["text"]) if helper_on(cfg, "question") else []):
@@ -415,6 +416,8 @@ class Summarizer:
                     new.append(p)
                 known = {p["title"].lower() for p in s["points"] + new if p["kind"] in ("term", "word")}
                 known.update(self.hub.cfg.get("known_words") or [])
+                if hebrew:
+                    known.update(w.lower() for w in HEBREW_TERMS)
                 for w in (dictionary.hard_words(seg["text"], level, known) if helper_on(cfg, "word") else []):
                     pos, sense = dictionary.define(w)
                     p = self._new_point(s, seg["t"], "word", w, sense, seg.get("sl"))
@@ -467,6 +470,7 @@ class Summarizer:
         prompt = AID_PROMPT.format(kinds="\n".join(AID_LINES[k] for k in kinds) or "(none: return no items)",
                                    kind_list="|".join(kinds) or "none", course=f" ({course})" if course else "", earlier=earlier_txt, start=fmt(start),
                                    end=fmt(end), text=chunk_text(segs), have=have_txt, questions=q_txt, define=d_txt)
+        prompt += hub.hebrew_rules(kid, "helper")
         try:
             out = parse_json(ask_ai(hub.cfg, prompt, 1100, json_mode=True))
         except Exception:
@@ -656,6 +660,7 @@ class Summarizer:
                 f"[{p['id']}] {p['title']}" for p in qs) + "\n"
         prompt = BLOCK_PROMPT.format(course=f" ({course})" if course else "", earlier=earlier_txt, start=fmt(start),
                                      end=fmt(end), text=chunk_text(segs), slides=slides, questions=questions)
+        prompt += hub.hebrew_rules(kid, "summary")
         out = parse_json(ask_ai(hub.cfg, prompt, 1200, json_mode=True))
         return out, str(out.get("topic") or "")[:80]
 
@@ -675,7 +680,8 @@ class Summarizer:
             course = hub.course_brief(kid)
             try:
                 out = parse_json(ask_ai(hub.cfg, OVERALL_PROMPT.format(course=f" ({course})" if course else "",
-                                                                     parts=parts[:24000], questions=qtxt), 1500, json_mode=True))
+                                                                     parts=parts[:24000], questions=qtxt)
+                                           + hub.hebrew_rules(kid, "summary"), 1500, json_mode=True))
                 overall = {"title": str(out.get("title") or "")[:100], "summary": str(out.get("summary") or "")[:1500],
                            "points": _strs(out.get("key_points"), 12, 300), "by": "ai"}
                 if not overall["summary"] and not overall["points"]:
@@ -713,7 +719,7 @@ The question, at {fmt(p['t'])}: {p['title']}
 
 Reply with JSON only: {{"brief":"the question restated in under 15 plain words so it makes sense on its own","context":"one or two sentences on what was being discussed that led to it","hint":"one short line on what a good answer would touch on, from what was said"}}"""
             try:
-                out = parse_json(ask_ai(hub.cfg, prompt, 300, json_mode=True))
+                out = parse_json(ask_ai(hub.cfg, prompt + hub.hebrew_rules(kid, "short"), 300, json_mode=True))
                 with hub.lock:
                     p["brief"] = str(out.get("brief") or "").strip()[:160]
                     p["ctx"] = str(out.get("context") or "").strip()[:320] or p.get("ctx", "")
@@ -750,7 +756,7 @@ Reply with JSON only: {{"brief":"the question restated in under 15 plain words s
 If the lecturer asked the class a question in this stretch, begin with a line starting "Question:" that restates the latest one briefly so it makes sense on its own, then a line starting "About:" saying in one sentence what was being discussed, so the student could answer if called on.
 Then in 2-4 short bullet points (start each with "• "), tell them what they missed: the main idea, any key term or definition, any example or formula, and anything they were asked to do. Finish with one line starting "Right now:" saying what the lecturer is in the middle of. Plain text, no preamble."""
             try:
-                return {"title": title, "text": ask_ai(hub.cfg, prompt, 400)}
+                return {"title": title, "text": ask_ai(hub.cfg, prompt + hub.hebrew_rules(kid, "short"), 400)}
             except Exception as e:
                 note = str(e)
         picks = key_sentences(segs, 3)

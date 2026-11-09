@@ -94,6 +94,8 @@ svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stro
 .tl svg{width:8px;height:8px;stroke:rgba(0,0,0,.55);stroke-width:1.6;fill:none;opacity:0}
 .lights:hover .tl svg{opacity:1}
 body.inactive .tl{background:var(--fill-hover);box-shadow:inset 0 0 0 .5px var(--hairline-strong)}
+.hebpill{color:var(--accent-color);font-weight:600}
+.hebpill span{font-family:var(--font-serif);font-size:14px}
 .tbtn{height:28px;min-width:28px;padding:0 7px;border:0;border-radius:6px;background:none;color:var(--text-secondary);display:inline-flex;align-items:center;justify-content:center;gap:5px;font:500 12.5px var(--font-sans);white-space:nowrap}
 .tbtn:hover{background:var(--fill-hover);color:var(--text-main)}
 .tbtn[aria-pressed="true"]{color:var(--accent-color)}
@@ -841,6 +843,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
   </div>
   <div class="tright">
     <button class="recbtn" id="recBtn" title="Start or pause listening (⌘.)"><span class="dot"></span><span id="recLbl">Record</span><span class="meter" id="meter" aria-hidden="true" hidden><i></i><i></i><i></i><i></i></span><span class="clock" id="clock">00:00</span></button>
+    <button class="tbtn hebpill" id="hebBtn" hidden title="Hebrew class: Hebrew words are written in Hebrew script in summaries, the note helper and class notes. Click to turn off for this course." aria-pressed="true"><span lang="he">עב</span> Hebrew</button>
     <button class="tbtn" id="missBtn" title="What did I miss? (⌘K)" aria-label="What did I miss?"><svg class="i"><use href="#i-back"/></svg></button>
     <div class="tseg" role="group" aria-label="Inspector">
       <button data-insp="sum" title="Live notes (⌘1)" aria-label="Live notes"><svg class="i"><use href="#i-wave"/></svg></button>
@@ -1421,7 +1424,7 @@ function renameInline(el, current, commit){
   inp.onblur = () => finish(true);
   inp.onclick = e => e.stopPropagation(); inp.onmousedown = e => e.stopPropagation();
 }
-const courseTaught = c => ('taught' in c) ? c.taught : (/\bhebrew\b(?!s)/i.test(c.name) ? 'he' : '');
+function courseTaught(c){ return ('taught' in c) ? c.taught : (/\bhebrew\b(?!s)/i.test(c.name) ? 'he' : ''); }
 function courseInfo(c, anchor){
   const box = document.createElement('div'); box.className = 'cinfo';
   box.innerHTML = `<div class="mhead" style="padding:0">About ${esc(c.name)}</div>
@@ -1434,7 +1437,7 @@ function courseInfo(c, anchor){
   box.querySelector('#ciCancel').onclick = () => closeMenu();
   box.querySelector('#ciSave').onclick = async () => {
     const patch = {taught: box.querySelector('#ciHeb').checked ? 'he' : '', context: box.querySelector('#ciCtx').value.trim()};
-    Object.assign(c, patch); closeMenu();
+    Object.assign(c, patch); closeMenu(); renderHeb();
     const r = await post('/course/info', {id: c.id, ...patch});
     toast(r.ok ? 'Saved. New summaries and class notes in this course will use it.' : r.error);
   };
@@ -1442,6 +1445,14 @@ function courseInfo(c, anchor){
   openMenu(anchor, box);
   setTimeout(() => box.querySelector('#ciCtx').focus(), 30);
 }
+function curCourse(){ const [, c] = findClass(S.kid); return c; }
+function renderHeb(){ const c = curCourse(); $('hebBtn').hidden = !(c && courseTaught(c) === 'he'); }
+async function setHebrew(c, on){
+  c.taught = on ? 'he' : ''; renderHeb();
+  const r = await post('/course/info', {id: c.id, taught: c.taught});
+  toast(!r.ok ? r.error : on ? `Hebrew on for ${c.name}: summaries, the note helper and class notes write Hebrew in Hebrew script.` : `Hebrew off for ${c.name}.`, 4000);
+}
+$('hebBtn').onclick = () => { const c = curCourse(); if (c) setHebrew(c, false); };
 function courseMenu(c, anchor, at){
   openMenu(anchor, [
     {label: 'New class', act: () => newClass(c.id)},
@@ -1683,7 +1694,7 @@ $('sbScroll').addEventListener('drop', e => { const b = dropRow(e); if (!b || !d
   const kid = dragKid; b.classList.remove('drop'); const [, from] = findClass(kid); if (from && from.id !== b.dataset.course) moveClass(kid, b.dataset.course); });
 
 /* title bar + document header */
-function renderTitle(){
+function renderTitle(){ renderHeb();
   const [k, c] = findClass(S.kid);
   $('tTitle').textContent = (k && k.name) || 'DenSemNotes';
   if (document.activeElement !== $('docTitle')) $('docTitle').value = (k && k.name) || '';
@@ -3136,6 +3147,7 @@ $('moreBtn').onclick = () => {
     {label: 'Save lesson as .md file', disabled: !S.cls.formatted, act: saveLessonMd},
     {label: view === 'read' ? 'Edit the note' : 'Read view', kbd: scLabel('readEdit'), act: () => setView(view === 'read' ? 'edit' : 'read')},
     '-',
+    ...(curCourse() ? [{label: 'Hebrew class (this course)', check: courseTaught(curCourse()) === 'he', act: () => setHebrew(curCourse(), courseTaught(curCourse()) !== 'he')}] : []),
     {label: 'Copy the whole transcript', kbd: scLabel('copyTx'), disabled: !(S.cls.segs || []).length, act: () => copyTranscript(false)},
     {label: 'Export notes, summaries and transcript', act: async () => { await saveNow(); const r = await post('/export', {kid: S.kid}); toast(r.ok ? 'Saved to ' + r.path : r.error, 5000); }},
     {label: 'Upload slides or documents…', act: () => $('fileIn').click()},

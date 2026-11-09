@@ -27,7 +27,7 @@ import spell  # noqa: E402
 from ai import NAMES, ai_ready, ask_ai, ollama_info, ollama_pull  # noqa: E402
 from lesson import LessonBuilder, export_class, save_lesson, template_info, template_path  # noqa: E402
 from live import Recorder, Summarizer, Transcriber  # noqa: E402
-from store import (APP_NAME, CFG_PATH, Library, course_taught, class_meta, load_class, load_json, new_id, original_notes, save_class,
+from store import (APP_NAME, CFG_PATH, HEBREW_HINT, HEBREW_TERMS, Library, course_taught, class_meta, load_class, load_json, new_id, original_notes, save_class,
                    save_json)  # noqa: E402
 from words import TfIdf, fmt  # noqa: E402
 
@@ -82,17 +82,6 @@ def clone(x):
 
 # ---------------------------------------------------------------- shared state + events
 
-
-HEBREW_HINT = ("aleph, bet, gimel, dalet, he, vav, zayin, chet, tet, yod, kaf, lamed, mem, nun, samekh, ayin, pe, tsade, qof, "
-               "resh, shin, tav, niqqud, qamets, patach, tsere, segol, hireq, holem, qibbuts, shureq, shewa, dagesh, mappiq, "
-               "maqqef, Qal, Niphal, Piel, Pual, Hiphil, Hophal, Hithpael, wayyiqtol, qatal, yiqtol, Elohim, Adonai, YHWH, Torah")
-HEBREW_TERMS = [w.strip() for w in HEBREW_HINT.split(",")] + [
-    "begadkephat", "shva", "sheva", "hatef", "metheg", "sof", "pasuq", "athnach", "silluq", "niphal", "piel", "pual",
-    "hiphil", "hophal", "hithpael", "qatal", "yiqtol", "weqatal", "wayyiqtol", "vayyiqtol", "cohortative", "jussive",
-    "infinitive", "construct", "absolute", "segholate", "guttural", "gutturals", "furtive", "aleph", "ayin", "qof",
-    "tsade", "samekh", "chet", "yod", "qamets", "qamats", "patach", "pathach", "tsere", "segol", "hireq", "hiriq",
-    "holem", "cholem", "qibbuts", "shureq", "shuruq", "dagesh", "mappiq", "maqqef", "niqqud", "nikkud", "shalom",
-    "elohim", "adonai", "torah", "bereshit", "hashamayim", "haaretz", "masoretic", "tanakh", "ketiv", "qere"]
 
 
 def _paragraphs(lines, size=90):
@@ -251,6 +240,27 @@ class Hub:
         heb = (" A Hebrew class taught in English. Hebrew: " + HEBREW_HINT + ".") if course_taught(c) == "he" else ""
         return f"{c['name']}." + heb + (f" Terms: {words}." if words else "") + " "
 
+    def hebrew_rules(self, kid, what):
+        """Extra instructions for the live AI in a Hebrew class: summaries, note helper items, or a short catch-up."""
+        if course_taught(self.course_of(kid)) != "he":
+            return ""
+        out = ("\n\nHEBREW CLASS: the lecture is in English with Hebrew words, forms and verses. The transcript writes "
+               "the Hebrew as English-sounding words ('bet ray sheet' = bereshit, 'ha shamayim', 'kal', 'nifal'); work "
+               "out the Hebrew from the context and the slides. Write each Hebrew word or form in Hebrew script followed "
+               "by its transliteration in brackets, e.g. שָׁלוֹם (shalom); add vowel points only when sure. If you can't "
+               "tell which Hebrew word was meant, write the transliteration alone; never guess a spelling. Hebrew on "
+               "the slides is the authority. Grammar terms stay in English: Qal, Niphal, Piel, Hiphil, perfect, "
+               "imperfect, wayyiqtol, construct, dagesh, shewa.")
+        if what == "helper":
+            out += ("\nFor the items: a Hebrew word or form the lecturer taught is a \"term\" with text = the Hebrew "
+                    "and transliteration (\"שָׁלוֹם (shalom)\"), meaning = its English meaning as taught, dict = a short "
+                    "gloss. A rule of Hebrew grammar the teacher gave is a \"point\" stating the rule. Never list Hebrew "
+                    "words or transliterations as a difficult \"word\".")
+        elif what == "summary":
+            out += ("\nIn the summary and details, keep the Hebrew words and forms the lecturer taught, each written "
+                    "as above with its meaning, and any rule or paradigm they gave.")
+        return out
+
     def course_brief(self, kid):
         """The course name plus what the student told us about it, for the AI's prompts."""
         c = self.course_of(kid)
@@ -258,9 +268,7 @@ class Hub:
             return ""
         out = c["name"]
         if course_taught(c) == "he":
-            out += ("; a Hebrew class taught in English: the lecturer mixes English with Hebrew words, forms and verses, "
-                    "which the transcript writes as English-sounding words (e.g. 'bet ray sheet' = bereshit). Write Hebrew "
-                    "words in Hebrew script with the transliteration in italics, e.g. שָׁלוֹם *shalom*")
+            out += "; a Hebrew class taught in English"
         if c.get("context"):
             out += "; about this course: " + c["context"]
         return out

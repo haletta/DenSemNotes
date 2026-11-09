@@ -515,6 +515,7 @@ class Importer:
         prompt = AID_PROMPT.format(kinds="\n".join(AID_LINES[k] for k in kinds) or "(none: return no items)",
                                    kind_list="|".join(kinds) or "none", course=f" ({course})" if course else "", earlier="", start=fmt(start), end=fmt(end),
                                    text=chunk_text(segs), have=have_txt, questions=q_txt, define=d_txt)
+        prompt += hub.hebrew_rules(kid, "helper")
         try:
             out = parse_json(ask_ai(hub.cfg, prompt, 1100, json_mode=True))
         except Exception:

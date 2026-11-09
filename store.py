@@ -480,3 +480,14 @@ def course_taught(c):
     if "taught" in c:
         return c["taught"]
     return "he" if re.search(r"\bhebrew\b(?!s)", c.get("name", ""), re.I) and not re.search(r"\bhebrews\b", c.get("name", ""), re.I) else ""
+
+HEBREW_HINT = ("aleph, bet, gimel, dalet, he, vav, zayin, chet, tet, yod, kaf, lamed, mem, nun, samekh, ayin, pe, tsade, qof, "
+               "resh, shin, tav, niqqud, qamets, patach, tsere, segol, hireq, holem, qibbuts, shureq, shewa, dagesh, mappiq, "
+               "maqqef, Qal, Niphal, Piel, Pual, Hiphil, Hophal, Hithpael, wayyiqtol, qatal, yiqtol, Elohim, Adonai, YHWH, Torah")
+HEBREW_TERMS = [w.strip() for w in HEBREW_HINT.split(",")] + [
+    "begadkephat", "shva", "sheva", "hatef", "metheg", "sof", "pasuq", "athnach", "silluq", "niphal", "piel", "pual",
+    "hiphil", "hophal", "hithpael", "qatal", "yiqtol", "weqatal", "wayyiqtol", "vayyiqtol", "cohortative", "jussive",
+    "infinitive", "construct", "absolute", "segholate", "guttural", "gutturals", "furtive", "aleph", "ayin", "qof",
+    "tsade", "samekh", "chet", "yod", "qamets", "qamats", "patach", "pathach", "tsere", "segol", "hireq", "hiriq",
+    "holem", "cholem", "qibbuts", "shureq", "shuruq", "dagesh", "mappiq", "maqqef", "niqqud", "nikkud", "shalom",
+    "elohim", "adonai", "torah", "bereshit", "hashamayim", "haaretz", "masoretic", "tanakh", "ketiv", "qere"]
