@@ -166,7 +166,13 @@ class Updater:
             if MAC:
                 r = procs.run(["bash", os.path.join(src, "Install.command"), "--update"], timeout=1800, keep=True)
                 if r.returncode != 0:
-                    raise RuntimeError("The installer stopped: " + (r.stderr or r.stdout)[-400:])
+                    log = ((r.stdout or "") + "\n" + (r.stderr or "")).strip()
+                    try:  # keep the whole output so a real failure can be looked at
+                        with open(os.path.join(os.path.dirname(HERE), "update.log"), "w") as f:
+                            f.write(f"exit {r.returncode}\n{log}\n")
+                    except Exception:
+                        pass
+                    raise RuntimeError(f"The installer stopped (code {r.returncode}): " + log[-400:])
             else:  # development copy on another system: just copy the files over
                 for name in os.listdir(src):
                     p = os.path.join(src, name)

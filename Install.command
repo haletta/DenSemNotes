@@ -120,4 +120,9 @@ say_step "Done"
 echo "Open DenSemNotes from your Applications folder (or Spotlight: Cmd+Space, type 'DenSemNotes')."
 echo "The first time you press Start listening, macOS asks for microphone access: click Allow."
 echo "The first time you upload PowerPoint slides, macOS may ask to let DenSemNotes use Keynote: click OK."
-[ "$UPDATE" = "0" ] && { open -R "$APP" || true; }
+# Show the app in Finder after a normal install. (Written as an if, not "[ ] && …": as the last line,
+# a false test made the whole installer exit with 1 in update mode, so the app reported it had stopped.)
+if [ "$UPDATE" = "0" ]; then
+  open -R "$APP" || true
+fi
+exit 0
