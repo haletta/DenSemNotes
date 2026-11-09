@@ -31,6 +31,7 @@ The first time you open it, macOS may say it's from an unidentified developer: r
 | **Inspector** | Live summaries, Ask, Transcript and Slides, opened from the title bar |
 
 - **Courses**: the + in the sidebar adds one. Right-click a course to rename it, change its icon and colour, or start a class in it.
+- **Course info…** (right-click a course): tick **Hebrew class taught in English** and add a few lines of context for the AI (textbook, level). In a Hebrew class, class notes write the Hebrew in Hebrew script with the transliteration in italics and the meaning, turn the teacher's charts into tables and add a **Vocabulary** table. Speech recognition gets Hebrew grammar terms as hints, and the spelling check leaves transliterations alone. A course named "Hebrew" is treated as one until you say otherwise; "Hebrews" isn't. Lines that are mostly Hebrew read right to left in the editor, Read view and transcript, in a font with vowel points.
 - **Classes** are named by date (`2026-10-26-Notes`) and sit inside their course in the sidebar. Click the arrow next to a course to show or hide its classes, and click a class to open it; a green dot marks a class that's been made into a lesson. Double-click a class to rename it, or right-click it for more.
 - **Moving a class**: drag it (from the sidebar or the card list) onto another course.
 - **Search** (⌥⌘F): type in the box at the top of the sidebar to search every course at once. Matching classes show under their courses and as cards; Return opens the first one, Esc clears the search.

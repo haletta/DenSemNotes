@@ -335,6 +335,18 @@ class Library:
             c["color"] = re.sub(r"[^a-z]", "", str(color))[:20]
         self.save()
 
+    def set_info(self, cid, taught=None, context=None):
+        """What kind of course it is: the language studied ("he" for a Hebrew class taught in English, "" for none)
+        and a few lines of context for the AI (textbook, level, what the class covers)."""
+        c = self.course(cid)
+        if not c:
+            raise ValueError("That course no longer exists.")
+        if taught is not None:
+            c["taught"] = str(taught) if str(taught) in ("he", "") else ""
+        if context is not None:
+            c["context"] = " ".join(str(context).split())[:600]
+        self.save()
+
     def learn_word(self, cid, word):
         c = self.course(cid)
         if c and word and word.lower() not in {w.lower() for w in c.setdefault("words", [])}:
@@ -412,6 +424,8 @@ class Library:
                     "words": c.get("words", []),
                     "icon": c.get("icon", ""),
                     "color": c.get("color", ""),
+                    **({"taught": c["taught"]} if "taught" in c else {}),
+                    "context": c.get("context", ""),
                     "classes": [{"id": k["id"], "name": k["name"], "date": k["date"], "created": k.get("created", 0),
                                  "updated": k.get("updated", k.get("created", 0)), **{x: k.get(x) for x in META_KEYS}}
                                 for k in self.classes_in(c["id"])],
@@ -456,3 +470,13 @@ def migrate_old(lib, cfg):
         lib.d["current"] = k["id"]
         os.replace(path, path + ".migrated")
         break
+
+
+def course_taught(c):
+    """'he' for a Hebrew class taught in English. Until the student says, a course named Hebrew counts as one
+    (but not the letter to the Hebrews)."""
+    if not c:
+        return ""
+    if "taught" in c:
+        return c["taught"]
+    return "he" if re.search(r"\bhebrew\b(?!s)", c.get("name", ""), re.I) and not re.search(r"\bhebrews\b", c.get("name", ""), re.I) else ""

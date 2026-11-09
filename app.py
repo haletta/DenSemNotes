@@ -27,7 +27,7 @@ import spell  # noqa: E402
 from ai import NAMES, ai_ready, ask_ai, ollama_info, ollama_pull  # noqa: E402
 from lesson import LessonBuilder, export_class, save_lesson, template_info, template_path  # noqa: E402
 from live import Recorder, Summarizer, Transcriber  # noqa: E402
-from store import (APP_NAME, CFG_PATH, Library, class_meta, load_class, load_json, new_id, original_notes, save_class,
+from store import (APP_NAME, CFG_PATH, Library, course_taught, class_meta, load_class, load_json, new_id, original_notes, save_class,
                    save_json)  # noqa: E402
 from words import TfIdf, fmt  # noqa: E402
 
@@ -81,6 +81,19 @@ def clone(x):
 
 
 # ---------------------------------------------------------------- shared state + events
+
+
+HEBREW_HINT = ("aleph, bet, gimel, dalet, he, vav, zayin, chet, tet, yod, kaf, lamed, mem, nun, samekh, ayin, pe, tsade, qof, "
+               "resh, shin, tav, niqqud, qamets, patach, tsere, segol, hireq, holem, qibbuts, shureq, shewa, dagesh, mappiq, "
+               "maqqef, Qal, Niphal, Piel, Pual, Hiphil, Hophal, Hithpael, wayyiqtol, qatal, yiqtol, Elohim, Adonai, YHWH, Torah")
+HEBREW_TERMS = [w.strip() for w in HEBREW_HINT.split(",")] + [
+    "begadkephat", "shva", "sheva", "hatef", "metheg", "sof", "pasuq", "athnach", "silluq", "niphal", "piel", "pual",
+    "hiphil", "hophal", "hithpael", "qatal", "yiqtol", "weqatal", "wayyiqtol", "vayyiqtol", "cohortative", "jussive",
+    "infinitive", "construct", "absolute", "segholate", "guttural", "gutturals", "furtive", "aleph", "ayin", "qof",
+    "tsade", "samekh", "chet", "yod", "qamets", "qamats", "patach", "pathach", "tsere", "segol", "hireq", "hiriq",
+    "holem", "cholem", "qibbuts", "shureq", "shuruq", "dagesh", "mappiq", "maqqef", "niqqud", "nikkud", "shalom",
+    "elohim", "adonai", "torah", "bereshit", "hashamayim", "haaretz", "masoretic", "tanakh", "ketiv", "qere"]
+
 
 def _paragraphs(lines, size=90):
     """Join transcript lines into readable paragraphs of about `size` words, breaking after a sentence."""
@@ -235,7 +248,22 @@ class Hub:
         if not c:
             return ""
         words = ", ".join(c.get("words", [])[-30:])
-        return f"{c['name']}." + (f" Terms: {words}." if words else "") + " "
+        heb = (" A Hebrew class taught in English. Hebrew: " + HEBREW_HINT + ".") if course_taught(c) == "he" else ""
+        return f"{c['name']}." + heb + (f" Terms: {words}." if words else "") + " "
+
+    def course_brief(self, kid):
+        """The course name plus what the student told us about it, for the AI's prompts."""
+        c = self.course_of(kid)
+        if not c:
+            return ""
+        out = c["name"]
+        if course_taught(c) == "he":
+            out += ("; a Hebrew class taught in English: the lecturer mixes English with Hebrew words, forms and verses, "
+                    "which the transcript writes as English-sounding words (e.g. 'bet ray sheet' = bereshit). Write Hebrew "
+                    "words in Hebrew script with the transliteration in italics, e.g. שָׁלוֹם *shalom*")
+        if c.get("context"):
+            out += "; about this course: " + c["context"]
+        return out
 
     # -- slides
     def slide_text(self, kid, sl):
@@ -405,6 +433,8 @@ class App:
             lib.rename_course(data.get("id"), str(data.get("name", "")))
         elif path == "/course/delete":
             lib.delete_course(data.get("id"))
+        elif path == "/course/info":
+            lib.set_info(data.get("id"), data.get("taught"), data.get("context"))
         elif path == "/course/style":
             lib.set_style(data.get("id"), data.get("icon"), data.get("color"))
         elif path == "/course/toggle":
@@ -613,7 +643,7 @@ class App:
         kid = data.get("kid") or self.hub.kid
         c = self.hub.course_of(kid) or {}
         lines = [str(x) for x in data.get("lines") or []]
-        issues = spell.check(lines, self.hub.cfg["language"], c.get("words", []))
+        issues = spell.check(lines, self.hub.cfg["language"], c.get("words", []) + (HEBREW_TERMS if course_taught(c) == "he" else []))
         if issues is None:
             return {"ok": True, "available": False, "issues": []}
         return {"ok": True, "available": True, "issues": issues}
@@ -621,6 +651,8 @@ class App:
     def spell_word(self, data):
         kid = data.get("kid") or self.hub.kid
         c = self.hub.course_of(kid) or {}
+        if course_taught(c) == "he" and str(data.get("word", "")) not in spell.COMMON:
+            return {"ok": True, "fix": None}  # Hebrew transliterations look like typos; only fix the usual English slips
         return {"ok": True, "fix": spell.autocorrect(str(data.get("word", ""))[:40], self.hub.cfg["language"], c.get("words", []))}
 
     def format_note(self, data):
@@ -1103,7 +1135,7 @@ def make_handler(app):
             try:
                 if url.path in routes:
                     return self._json(routes[url.path]())
-                if url.path in ("/course/new", "/course/rename", "/course/delete", "/course/toggle", "/course/style", "/class/rename",
+                if url.path in ("/course/new", "/course/rename", "/course/delete", "/course/toggle", "/course/style", "/course/info", "/class/rename",
                                 "/class/move", "/class/delete"):
                     return self._json(app.lib_op(url.path, data))
                 self._json({"error": "not found"}, 404)

@@ -43,6 +43,17 @@ SLIDE_LAYOUT = """LAYOUT: THE SLIDES ARE THE OUTLINE (the student chose this; it
 - A slide the lecturer skipped or barely mentioned still gets a short section from its own content.
 - Sections can be longer here than usual, but keep bullets short and the rest of the rules (main idea callout, ==terms==, Summary, Glossary)."""
 
+HEBREW = """THIS IS A HEBREW CLASS TAUGHT IN ENGLISH. The lecturer mixes English with Hebrew words, forms, paradigms and verses. The notes are in English, with the Hebrew written properly:
+- Speech recognition hears Hebrew as English-sounding words ("bet ray sheet", "ha shamayim", "kal", "nifal", "wa yomer"). Work out which Hebrew the lecturer said from the context, the slides and the student's notes.
+- Write each Hebrew word or form the lecturer taught in Hebrew script, then the transliteration in italics, then the meaning: שָׁלוֹם *shalom*, "peace". Add vowel points (niqqud) only when you are sure of them; otherwise write the consonants with the transliteration. If you can't tell which Hebrew word was meant, keep only the transliteration in italics followed by "(?)"; never guess a spelling.
+- Hebrew on the slides or in the student's notes is the authority: copy it exactly, points included.
+- Keep Hebrew inside English sentences and bullets, a word or short phrase at a time, always with its English. No paragraphs of Hebrew alone.
+- Grammar terms in their usual English form, capitalised as stems: Qal, Niphal, Piel, Pual, Hiphil, Hophal, Hithpael; perfect (qatal), imperfect (yiqtol), wayyiqtol, construct, absolute, dagesh forte / lene, shewa, maqqef, furtive patach, BeGaDKePhaT, gutturals.
+- Paradigms, alphabets, vowel charts and other charts the teacher gave become Markdown tables, e.g. | Form | Hebrew | Transliteration | Meaning |. The teacher's rules (what a guttural does to the vowel, when dagesh lene appears) go in the Rule callouts.
+- Just before "## Summary", a "## Vocabulary" section: a table | Hebrew | Transliteration | Meaning | Notes | of the words the lecturer taught or drilled today (not every word heard).
+- Mark key Hebrew words as ==Hebrew== on first use; in the Glossary write "- <Hebrew>: *transliteration*, meaning".
+- For a Hebrew Bible passage the lecturer read and worked through, you may write the Hebrew words they read out, with the reference, and translate as the teacher did (this replaces "never quote Bible text" for the Hebrew words only; still never quote an English translation)."""
+
 FULL = 10 ** 7  # no word limit: the full transcript and all resources go to the class-notes AI
 CAPS = {"ollama": 6000, "groq": 3500, "gemini": 40000, "claude": 40000}
 
@@ -240,6 +251,10 @@ def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500
         if blocks:
             parts.append("(D) TEXT OF THE SLIDES the notes are linked to. Use it to order the sections the way the "
                          "slides go and to spell terms correctly; don't copy slides wholesale.\n" + "\n".join(blocks))
+    if opts.get("brief"):
+        parts.append("ABOUT THIS COURSE (from the student): " + opts["brief"])
+    if opts.get("taught") == "he":
+        parts.append(HEBREW)
     if opts.get("earlier"):
         parts.append(EARLIER + "\n" + opts["earlier"])
     if "wrote" in sources and "heard" in sources:
@@ -570,6 +585,9 @@ class LessonBuilder:
                 try:
                     # class notes always get the whole transcript and every slide deck and document, for live and
                     # imported classes alike, whichever AI writes them
+                    from store import course_taught
+                    c = hub.course_of(kid) or {}
+                    opts = {**opts, "taught": course_taught(c), "brief": c.get("context", "")}
                     if hub.cfg["ui"].get("reviewEarlier", True):
                         try:
                             opts = {**opts, "earlier": earlier_material(hub, kid, s, doc_pages,

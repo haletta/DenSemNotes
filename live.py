@@ -458,7 +458,7 @@ class Summarizer:
         have_txt = ("\nAlready noted (don't repeat):\n" + "\n".join(f"- {p['title']}" for p in have[-12:])) if have else ""
         earlier = [b for b in s.get("blocks", []) if not b["quiet"]][-1:]
         earlier_txt = (f"\nThe lecture so far: {earlier[0]['title']}: {earlier[0]['summary']}\n") if earlier else ""
-        course = hub.course_name(kid)
+        course = hub.course_brief(kid)
         kinds = [k for k in AID_KINDS if helper_on(hub.cfg, k)]
         q_txt, d_txt = aid_extra(s, start, end, hub.cfg)
         if not kinds and not d_txt:  # every AI helper is off: no AI call at all
@@ -639,7 +639,7 @@ class Summarizer:
 
     def _ask_block(self, kid, s, start, end, segs, qs, pages):
         hub = self.hub
-        course = hub.course_name(kid)
+        course = hub.course_brief(kid)
         earlier = [b for b in s["blocks"] if not b["quiet"]][-3:]
         earlier_txt = ("\nEARLIER PARTS (context only):\n" + "\n".join(
             f"[{fmt(b['start'])}–{fmt(b['end'])}] {b['title']}: {b['summary']}" for b in earlier) + "\n") if earlier else ""
@@ -672,7 +672,7 @@ class Summarizer:
                                 + "\n".join("- " + d for d in b["details"]) for b in blocks)
             qtxt = ("\nAsked or announced in class:\n" + "\n".join(
                 f"- {'Due: ' if p['kind'] == 'deadline' else 'Q: '}{p['title']} {p['detail']}".strip() for p in qs) + "\n") if qs else ""
-            course = hub.course_name(kid)
+            course = hub.course_brief(kid)
             try:
                 out = parse_json(ask_ai(hub.cfg, OVERALL_PROMPT.format(course=f" ({course})" if course else "",
                                                                      parts=parts[:24000], questions=qtxt), 1500, json_mode=True))
@@ -704,7 +704,7 @@ class Summarizer:
         ago = max(0, int(now - p["t"]))
         when = f"{fmt(p['t'])} · {ago // 60} min ago" if ago >= 60 else f"{fmt(p['t'])} · just now"
         if not p.get("brief") and ai_ready(hub.cfg) and segs:
-            course = hub.course_name(kid)
+            course = hub.course_brief(kid)
             prompt = f"""A student{f' in {course}' if course else ''} wasn't listening when the lecturer asked the class a question and may be called on. Speech-recognition transcript around it (may contain mis-heard words):
 
 {chunk_text(segs)}
@@ -742,7 +742,7 @@ Reply with JSON only: {{"brief":"the question restated in under 15 plain words s
             return {"title": title, "text": "Nothing transcribed in that window yet."}
         note = ""
         if ai_ready(hub.cfg):
-            course = hub.course_name(kid)
+            course = hub.course_brief(kid)
             prompt = f"""A student{f' in {course}' if course else ''} lost focus during a lecture and needs to catch up fast. Here is the speech-recognition transcript of the last {mins} minute(s) (it may contain mis-heard words):
 
 {chunk_text(segs)}

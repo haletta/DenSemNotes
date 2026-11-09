@@ -506,9 +506,14 @@ class Importer:
         have = [p for p in s["points"] if p["kind"] in ("point", "quote", "source", "term", "word", "example")
                 and start - 60 <= p["t"] < end]
         have_txt = ("\nAlready noted (don't repeat):\n" + "\n".join(f"- {p['title']}" for p in have[-12:])) if have else ""
-        course = hub.course_name(kid)
-        q_txt, d_txt = aid_extra(s, start, end)
-        prompt = AID_PROMPT.format(course=f" ({course})" if course else "", earlier="", start=fmt(start), end=fmt(end),
+        course = hub.course_brief(kid)
+        from live import AID_KINDS, AID_LINES, helper_on
+        kinds = [k for k in AID_KINDS if helper_on(hub.cfg, k)]
+        q_txt, d_txt = aid_extra(s, start, end, hub.cfg)
+        if not kinds and not d_txt:
+            return
+        prompt = AID_PROMPT.format(kinds="\n".join(AID_LINES[k] for k in kinds) or "(none: return no items)",
+                                   kind_list="|".join(kinds) or "none", course=f" ({course})" if course else "", earlier="", start=fmt(start), end=fmt(end),
                                    text=chunk_text(segs), have=have_txt, questions=q_txt, define=d_txt)
         try:
             out = parse_json(ask_ai(hub.cfg, prompt, 1100, json_mode=True))

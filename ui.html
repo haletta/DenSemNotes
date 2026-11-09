@@ -8,10 +8,10 @@
 <style>
 /* Layout: translucent title bar; panes = sidebar (library, courses, tags) | document list (class cards) | editor canvas (centred column) | inspector (live notes, ask, transcript, slides) */
 :root{
-  --font-sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --font-sans:"DS Hebrew Sans",-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro",system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
   --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro",system-ui,"Helvetica Neue",Helvetica,Arial,sans-serif;
-  --font-serif:"New York",ui-serif,"Iowan Old Style",Charter,Georgia,serif;
-  --font-mono:"SF Mono",ui-monospace,Menlo,Monaco,monospace;
+  --font-serif:"DS Hebrew","New York",ui-serif,"Iowan Old Style",Charter,Georgia,serif;
+  --font-mono:"DS Hebrew","SF Mono",ui-monospace,Menlo,Monaco,monospace;
 
   --acc-l:#1f7a63; --acc-d:#4fc3a1; --acc-soft-l:rgba(31,122,99,.13); --acc-soft-d:rgba(79,195,161,.17); --acc-ink-d:#07130f;
   --accent-color:var(--acc-l); --accent-soft:var(--acc-soft-l); --accent-ink:#ffffff;
@@ -706,6 +706,13 @@ dialog h2{font:700 15px var(--font-display);margin:0}
 .field.wide{grid-template-columns:1fr}
 .field.wide > label{text-align:left}
 .check{display:flex;gap:7px;align-items:center;font-size:13px;padding-top:4px}
+@font-face{font-family:"DS Hebrew";src:local("SBL Hebrew"),local("SBLHebrew"),local("Ezra SIL"),local("Taamey Frank CLM"),local("Times New Roman"),local("TimesNewRomanPSMT"),local("Arial Hebrew");unicode-range:U+0590-05FF,U+FB1D-FB4F;size-adjust:118%}
+@font-face{font-family:"DS Hebrew Sans";src:local("Arial Hebrew"),local("ArialHebrew"),local("Lucida Grande"),local("Arial");unicode-range:U+0590-05FF,U+FB1D-FB4F;size-adjust:112%}
+.ln[dir="rtl"],#reader [dir="rtl"],#tx p[dir="rtl"] span{text-align:right}
+.cinfo{display:grid;gap:8px;padding:10px 12px;width:320px}
+.cinfo textarea{width:100%;min-height:78px;resize:vertical;font:13px/1.4 var(--font-sans);padding:6px 8px;border-radius:6px;border:1px solid var(--separator, rgba(128,128,128,.35));background:var(--bg-editor);color:inherit}
+.cinfo small{color:var(--text-tertiary);font-size:11.5px;line-height:1.35}
+.cinfo .row{display:flex;justify-content:flex-end;gap:6px}
 .ai-tag{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--text-tertiary);border:1px solid var(--separator, rgba(128,128,128,.35));border-radius:4px;padding:0 4px}
 .toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 12px}
 .inline{display:flex;gap:8px;align-items:center}
@@ -1414,10 +1421,32 @@ function renameInline(el, current, commit){
   inp.onblur = () => finish(true);
   inp.onclick = e => e.stopPropagation(); inp.onmousedown = e => e.stopPropagation();
 }
+const courseTaught = c => ('taught' in c) ? c.taught : (/\bhebrew\b(?!s)/i.test(c.name) ? 'he' : '');
+function courseInfo(c, anchor){
+  const box = document.createElement('div'); box.className = 'cinfo';
+  box.innerHTML = `<div class="mhead" style="padding:0">About ${esc(c.name)}</div>
+    <label class="check"><input type="checkbox" id="ciHeb"${courseTaught(c) === 'he' ? ' checked' : ''}> Hebrew class taught in English</label>
+    <small>The lecture is in English with Hebrew words, forms and verses. Class notes write the Hebrew in Hebrew script with the transliteration and meaning, add a Vocabulary table, and the spelling check leaves Hebrew transliterations alone.</small>
+    <label for="ciCtx" style="font-size:12px;font-weight:600">Context for the AI <span style="font-weight:400;color:var(--text-tertiary)">(optional)</span></label>
+    <textarea id="ciCtx" maxlength="600" placeholder="e.g. Biblical Hebrew I, textbook Pratico &amp; Van Pelt. Hebrew words are taught with their pointing.">${esc(c.context || '')}</textarea>
+    <small>Used for live summaries, the note helper and class notes in this course.</small>
+    <div class="row"><button class="btn sm" id="ciCancel">Cancel</button><button class="btn sm primary" id="ciSave">Save</button></div>`;
+  box.querySelector('#ciCancel').onclick = () => closeMenu();
+  box.querySelector('#ciSave').onclick = async () => {
+    const patch = {taught: box.querySelector('#ciHeb').checked ? 'he' : '', context: box.querySelector('#ciCtx').value.trim()};
+    Object.assign(c, patch); closeMenu();
+    const r = await post('/course/info', {id: c.id, ...patch});
+    toast(r.ok ? 'Saved. New summaries and class notes in this course will use it.' : r.error);
+  };
+  box.addEventListener('keydown', e => e.stopPropagation());
+  openMenu(anchor, box);
+  setTimeout(() => box.querySelector('#ciCtx').focus(), 30);
+}
 function courseMenu(c, anchor, at){
   openMenu(anchor, [
     {label: 'New class', act: () => newClass(c.id)},
     {label: 'Import a past class…', act: () => openImport(c.id)},
+    {label: 'Course info…', act: () => courseInfo(c, document.querySelector(`.sb-item[data-course="${c.id}"] .ic`) || anchor)},
     {label: 'Change icon…', act: () => iconPicker(c, document.querySelector(`.sb-item[data-course="${c.id}"] .ic`) || anchor)},
     {label: 'Rename course', act: () => { const el = document.querySelector(`.sb-item[data-course="${c.id}"] .nm`); el && renameInline(el, c.name, name => post('/course/rename', {id: c.id, name})); }},
     '-',
@@ -1782,6 +1811,7 @@ function render(full){
     if (c.kind){ if (d.dataset.kind !== c.kind) d.dataset.kind = c.kind; } else if (d.dataset.kind) delete d.dataset.kind;
     const lang = c.lang ? c.lang.toUpperCase() : ''; if (lang){ if (d.dataset.lang !== lang) d.dataset.lang = lang; } else if (d.dataset.lang) delete d.dataset.lang;
     const html = lineHTML(l.text, c);
+    const rtl = rtlText(l.text); if (rtl !== (d.dir === 'rtl')){ if (rtl) d.dir = 'rtl'; else d.removeAttribute('dir'); }
     if (full || d._h !== html){ if (d.innerHTML !== html) d.innerHTML = html; d._h = html; }
     const tl = l.t != null ? fmt(l.t) : ''; if (d.dataset.time !== tl){ if (tl) d.dataset.time = tl; else delete d.dataset.time; }
     const sl = slLabel(l.sl); if ((d.dataset.sl || '') !== sl){ if (sl) d.dataset.sl = sl; else delete d.dataset.sl; }
@@ -2393,7 +2423,7 @@ function doNav(src){
 }
 /* transcript */
 function segEl(s, i){ const p = document.createElement('p'); p.dataset.i = i; const t = document.createElement('time'); t.textContent = fmt(s.t);
-  const sp = document.createElement('span'); sp.textContent = s.text; p.append(t, sp); return p; }
+  const sp = document.createElement('span'); sp.textContent = s.text; if (rtlText(s.text)) sp.dir = 'rtl'; p.append(t, sp); return p; }
 async function copyTranscript(times){
   if (!(S.cls.segs || []).length) return toast('This class has no transcript yet.');
   const r = await post('/copy-transcript', {kid: S.kid, times: !!times});
@@ -2752,6 +2782,10 @@ function listHTML(items, a, b, ctx, base){
   }
   return html + (ord ? '</ol>' : '</ul>');
 }
+/* A line that is mostly Hebrew reads right to left; English with a few Hebrew words stays left to right. */
+const HEB = /[\u0590-\u05FF\uFB1D-\uFB4F]/g, LAT = /[A-Za-z]/g;
+const rtlText = t => { const h = (String(t).match(HEB) || []).length; return h > 0 && h >= (String(t).match(LAT) || []).length; };
+function setDirs(root, sel){ root.querySelectorAll(sel).forEach(el => { if (rtlText(el.textContent)) el.dir = 'rtl'; else el.removeAttribute('dir'); }); }
 function renderReader(){
   const lines = L.map(l => l.text);
   const [fm, start] = frontMatter(lines);
@@ -2763,6 +2797,7 @@ function renderReader(){
   let html = rblocks(lines.slice(start), start, ctx);
   if (!ctx.titled) html = `<h1 class="ltitle">${esc(fm.title || (k && k.name) || 'Lesson')}</h1>${ctx.metaHTML}` + html;
   const r = $('reader'); r.innerHTML = html;
+  setDirs(r, 'p, li, h1, h2, h3, h4, td, th, blockquote > p, .callout p');
   r.querySelectorAll('.diagram').forEach(drawDiagram);
   readerSlideTags(r);
 }
