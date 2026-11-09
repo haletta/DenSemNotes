@@ -21,6 +21,21 @@ KINDS = ("point", "question", "deadline", "quote", "source", "term", "word", "ex
 AID_KINDS = ("point", "quote", "source", "term", "word", "example")
 
 
+def helper_on(cfg, kind):
+    """Each note helper can be switched off in Preferences; an off helper isn't looked for and costs no AI."""
+    return (cfg.get("helpers") or {}).get(kind, True) is not False
+
+
+AID_LINES = {
+    "point": '- "point": a main idea or claim the lecturer stressed, one short sentence, in the lecturer\'s words where possible.',
+    "quote": '- "quote": a striking sentence the lecturer said or read out, word for word; "who" = the person quoted (empty if it\'s the lecturer\'s own words).',
+    "source": '- "source": an idea the lecturer credited to a book, article or author; "who" = the author, "work" = the title if it was said; "text" = the idea in one sentence.',
+    "term": '- "term": a key term of the subject that the lecturer used or explained; "text" = the term, "meaning" = its meaning as the lecturer explained it (empty if not explained), "dict" = a short dictionary definition.',
+    "word": '- "word": a difficult English word the lecturer used that an average English speaker may not know (not a subject term already listed, not a name); "text" = the word in its dictionary form, "pos" = part of speech, "dict" = a plain dictionary definition in under 20 words.',
+    "example": '- "example": a story, case or illustration the lecturer used, in one sentence.',
+}
+
+
 def slide_at(s, t):
     """The slide that was on screen at lecture time t (or None)."""
     found = None
@@ -251,24 +266,19 @@ AID_PROMPT = """You help a student take notes during a live lecture{course}. The
 WHAT THE LECTURER JUST SAID [{start}–{end}]:
 {text}
 
-List only what a student should write down from this stretch, 0 to 5 items:
-- "point": a main idea or claim the lecturer stressed, one short sentence, in the lecturer's words where possible.
-- "quote": a striking sentence the lecturer said or read out, word for word; "who" = the person quoted (empty if it's the lecturer's own words).
-- "source": an idea the lecturer credited to a book, article or author; "who" = the author, "work" = the title if it was said; "text" = the idea in one sentence.
-- "term": a key term of the subject that the lecturer used or explained; "text" = the term, "meaning" = its meaning as the lecturer explained it (empty if not explained), "dict" = a short dictionary definition.
-- "word": a difficult English word the lecturer used that an average English speaker may not know (not a subject term already listed, not a name); "text" = the word in its dictionary form, "pos" = part of speech, "dict" = a plain dictionary definition in under 20 words.
-- "example": a story, case or illustration the lecturer used, in one sentence.
+List only what a student should write down from this stretch, 0 to 5 items, of these kinds only:
+{kinds}
 Skip small talk, class logistics and questions. Never invent names or titles that weren't said.{have}{questions}{define}
-Reply with JSON only: {{"items":[{{"kind":"point|quote|source|term|word|example","text":"...","who":"","work":"","meaning":"","pos":"","dict":"","at":"mm:ss"}}],"questions":[{{"id":"","brief":"","context":""}}],"defs":[{{"word":"","pos":"","dict":""}}]}}"""
+Reply with JSON only: {{"items":[{{"kind":"{kind_list}","text":"...","who":"","work":"","meaning":"","pos":"","dict":"","at":"mm:ss"}}],"questions":[{{"id":"","brief":"","context":""}}],"defs":[{{"word":"","pos":"","dict":""}}]}}"""
 
 
-def aid_extra(s, start, end):
+def aid_extra(s, start, end, cfg=None):
     """Extra parts of AID_PROMPT: questions asked in this stretch, and words still waiting for a definition."""
     qs = []  # questions are restated only when the student asks ("What was the question?")
     q_txt = ("\n\nQUESTIONS THE LECTURER ASKED in this stretch. For each, \"brief\" = the question restated in under 15 "
              "plain words so it makes sense on its own, and \"context\" = one sentence on what was being discussed when "
              "it was asked, for a student who wasn't listening:\n" + "\n".join(f"[{p['id']}] {p['title']}" for p in qs[:6])) if qs else ""
-    need = [p for p in s["points"] if p["kind"] in ("word", "term") and not (p["detail"] if p["kind"] == "word" else p.get("dict"))]
+    need = [p for p in s["points"] if p["kind"] in ("word", "term") and helper_on(cfg or {}, p["kind"]) and not (p["detail"] if p["kind"] == "word" else p.get("dict"))]
     d_txt = ("\n\nGive a short dictionary definition (\"defs\") for each of these words from the lecture, as used there: "
              + ", ".join(p["title"] for p in need[-8:])) if need else ""
     return q_txt, d_txt
@@ -377,15 +387,18 @@ class Summarizer:
             segs = s["segs"][s["q_idx"]:]
             s["q_idx"] = len(s["segs"])
             level = str(self.hub.cfg.get("hard_words") or "normal")
+            cfg = self.hub.cfg
             first = len(s["segs"]) - len(segs)
             for i, seg in enumerate(segs):
-                for q in questions_in(seg["text"]):
+                for q in (questions_in(seg["text"]) if helper_on(cfg, "question") else []):
                     if any(p["kind"] == "question" and similarity(p["title"], q) > 0.8 for p in s["points"][-10:] + new):
                         continue
                     p = self._new_point(s, seg["t"], "question", q, "", seg.get("sl"))
                     p["ctx"] = q_context(s["segs"], first + i, q)
                     new.append(p)
                 for kind, title, detail in aids_in(seg["text"]):
+                    if not helper_on(cfg, kind):
+                        continue
                     recent = [p for p in s["points"][-25:] + new if p["kind"] in AID_KINDS]
                     if any(similarity(p["title"], title) > 0.6 or (kind == "term" and p["kind"] in ("term", "word") and
                                                                    p["title"].lower() == title.lower()) for p in recent):
@@ -402,13 +415,13 @@ class Summarizer:
                     new.append(p)
                 known = {p["title"].lower() for p in s["points"] + new if p["kind"] in ("term", "word")}
                 known.update(self.hub.cfg.get("known_words") or [])
-                for w in dictionary.hard_words(seg["text"], level, known):
+                for w in (dictionary.hard_words(seg["text"], level, known) if helper_on(cfg, "word") else []):
                     pos, sense = dictionary.define(w)
                     p = self._new_point(s, seg["t"], "word", w, sense, seg.get("sl"))
                     p.update(pos=pos, dsrc="dictionary" if sense else "")
                     new.append(p)
                 for x in sentences(seg["text"]):
-                    if x.endswith("?") or len(x.split()) < 5 or not DEADLINE.search(x):
+                    if x.endswith("?") or len(x.split()) < 5 or not DEADLINE.search(x) or not helper_on(cfg, "deadline"):
                         continue
                     if any(p["kind"] == "deadline" and overlap(p["title"], x) > 0.5 for p in s["points"][-12:] + new):
                         continue
@@ -446,8 +459,13 @@ class Summarizer:
         earlier = [b for b in s.get("blocks", []) if not b["quiet"]][-1:]
         earlier_txt = (f"\nThe lecture so far: {earlier[0]['title']}: {earlier[0]['summary']}\n") if earlier else ""
         course = hub.course_name(kid)
-        q_txt, d_txt = aid_extra(s, start, end)
-        prompt = AID_PROMPT.format(course=f" ({course})" if course else "", earlier=earlier_txt, start=fmt(start),
+        kinds = [k for k in AID_KINDS if helper_on(hub.cfg, k)]
+        q_txt, d_txt = aid_extra(s, start, end, hub.cfg)
+        if not kinds and not d_txt:  # every AI helper is off: no AI call at all
+            s["aid_t"] = end
+            return
+        prompt = AID_PROMPT.format(kinds="\n".join(AID_LINES[k] for k in kinds) or "(none: return no items)",
+                                   kind_list="|".join(kinds) or "none", course=f" ({course})" if course else "", earlier=earlier_txt, start=fmt(start),
                                    end=fmt(end), text=chunk_text(segs), have=have_txt, questions=q_txt, define=d_txt)
         try:
             out = parse_json(ask_ai(hub.cfg, prompt, 1100, json_mode=True))
@@ -491,7 +509,7 @@ class Summarizer:
                     continue
                 kind = str(it.get("kind") or "").lower()
                 text = str(it.get("text") or "").strip()
-                if kind not in AID_KINDS or len(text) < 2:
+                if kind not in AID_KINDS or len(text) < 2 or not helper_on(self.hub.cfg, kind):
                     continue
                 who, work, meaning = (str(it.get(k) or "").strip() for k in ("who", "work", "meaning"))
                 sense, pos = str(it.get("dict") or "").strip()[:240], str(it.get("pos") or "").strip()[:20]

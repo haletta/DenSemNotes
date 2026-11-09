@@ -67,6 +67,7 @@ DEFAULTS = dict(
     language="en",
     period=0,  # minutes per live summary; 0 = only when the class is paused or finished
     aid_every=2,  # minutes between AI passes of the live note helper (0 = instant detection only)
+    helpers={},  # note helper kind -> False for the ones switched off (they're not looked for and cost no AI)
     hard_words="normal",  # difficult words in the note helper: off | fewer | normal | more
     known_words=[],  # difficult words the student removed ("I know this one"): never flagged again
     device=None,
@@ -687,6 +688,9 @@ class App:
             hub.cfg["aid_every"] = max(0, min(10, int(data["aid_every"])))
         if data.get("hard_words") in ("off", "fewer", "normal", "more"):
             hub.cfg["hard_words"] = data["hard_words"]
+        if isinstance(data.get("helpers"), dict):
+            from live import KINDS
+            hub.cfg["helpers"] = {k: False for k, v in data["helpers"].items() if k in KINDS and v is False}
         if data.get("forget_known"):
             hub.cfg["known_words"] = []
         for which, field in (("claude", "api_key"), ("gemini", "gemini_key"), ("groq", "groq_key")):

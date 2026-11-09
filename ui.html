@@ -705,6 +705,7 @@ dialog h2{font:700 15px var(--font-display);margin:0}
 .field.wide{grid-template-columns:1fr}
 .field.wide > label{text-align:left}
 .check{display:flex;gap:7px;align-items:center;font-size:13px;padding-top:4px}
+.ai-tag{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--text-tertiary);border:1px solid var(--separator, rgba(128,128,128,.35));border-radius:4px;padding:0 4px}
 .toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 12px}
 .inline{display:flex;gap:8px;align-items:center}
 .inline input{flex:1;min-width:0}
@@ -999,6 +1000,16 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
       <div class="field"><label for="aid_every">Note helper</label><div class="ctl"><select id="aid_every">
         <option value="1">Instant + AI every minute</option><option value="2">Instant + AI every 2 minutes</option><option value="5">Instant + AI every 5 minutes</option><option value="0">Instant only (no AI)</option>
       </select><small>Key points, quotes, books and authors, terms, difficult words, examples and questions are spotted the moment they're said. The AI then tidies them, adds what the quick check missed, and restates each question with what it was about. With a local AI, a longer gap keeps your Mac lighter.</small></div></div>
+      <div class="field"><span class="lab">Helpers</span><div class="ctl" id="pHelpers">
+        <label class="check"><input type="checkbox" data-h="point"> Key points <span class="ai-tag">AI</span></label>
+        <label class="check"><input type="checkbox" data-h="term"> Key terms <span class="ai-tag">AI</span></label>
+        <label class="check"><input type="checkbox" data-h="word"> Difficult words <span class="ai-tag">AI</span></label>
+        <label class="check"><input type="checkbox" data-h="quote"> Quotes <span class="ai-tag">AI</span></label>
+        <label class="check"><input type="checkbox" data-h="source"> Books and authors <span class="ai-tag">AI</span></label>
+        <label class="check"><input type="checkbox" data-h="example"> Examples <span class="ai-tag">AI</span></label>
+        <label class="check"><input type="checkbox" data-h="deadline"> Due dates</label>
+        <label class="check"><input type="checkbox" data-h="question"> Questions asked in class</label>
+        <small>Untick a helper and it isn't looked for, so it uses no AI. The ones marked AI are checked by the AI every few minutes; with all of them off, the note helper makes no AI calls. Due dates and questions are spotted without AI. Your class notes don't depend on these.</small></div></div>
       <div class="field"><label for="hard_words">Difficult words</label><div class="ctl"><select id="hard_words">
         <option value="fewer">Only rare words</option><option value="normal">Rare and uncommon words</option><option value="more">Also less common words</option><option value="off">Off</option>
       </select><small>Words an average English speaker may not know are listed with a dictionary definition from your Mac's Dictionary (the AI fills in any it doesn't have). Remove one with ✕ and it won't be flagged again. <button type="button" class="linkbtn" id="forgetKnown">Show removed words again</button><span id="forgetState"></span></small></div></div>
@@ -2259,14 +2270,15 @@ function renderLive(initial){
 /* note helper (bottom of Live) */
 const AID_K = ['point', 'quote', 'source', 'term', 'word', 'example'];
 const FEED_K = AID_K.concat(['deadline']);  // questions appear only when asked for ("What was the question?")
-function aidFilter(){ const f = ui().aidFilter || 'all'; return FEED_K.includes(f) ? f : 'all'; }
+const helperOn = k => ((S.cfg.helpers || {})[k]) !== false;
+function aidFilter(){ const f = ui().aidFilter || 'all'; return FEED_K.includes(f) && helperOn(f) ? f : 'all'; }
 function renderAids(initial){
   const box = $('aidScroll'), stick = initial || nearBottom(box, 60);
-  const items = (S.cls.points || []).filter(p => FEED_K.includes(p.kind)).sort((a, b) => a.t - b.t);
+  const items = (S.cls.points || []).filter(p => FEED_K.includes(p.kind) && helperOn(p.kind)).sort((a, b) => a.t - b.t);
   const f = aidFilter(), counts = {};
   items.forEach(p => { const k = p.kind; counts[k] = (counts[k] || 0) + 1; });
   $('aidChips').querySelectorAll('button').forEach(b => {
-    const k = b.dataset.k; b.setAttribute('aria-pressed', k === f);
+    const k = b.dataset.k; b.setAttribute('aria-pressed', k === f); b.hidden = k !== 'all' && !helperOn(k);
     const n = k === 'all' ? items.length : counts[k] || 0; let c = b.querySelector('.c');
     if (!c){ c = document.createElement('span'); c.className = 'c'; b.append(c); } c.textContent = n ? n : '';
   });
@@ -3219,6 +3231,7 @@ prefs.addEventListener('click', e => {
 async function openPrefs(which){
   const c = S.cfg; removeKeys = []; $('testState').textContent = ''; $('pullState').textContent = '';
   ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => { if (c[k] != null) $(k).value = String(c[k]); });
+  prefs.querySelectorAll('#pHelpers [data-h]').forEach(x => x.checked = helperOn(x.dataset.h));
   if (c.whisper && ![...$('whisper').options].some(o => o.value === c.whisper)) $('whisper').add(new Option(c.whisper, c.whisper, true, true));
   KEYS.forEach(k => { const has = c.has_key && c.has_key[k]; const inp = $('key_' + k); inp.value = '';
     inp.placeholder = has ? 'Key saved (type to replace)' : PH[k]; prefs.querySelector(`[data-remove="${k}"]`).hidden = !has; });
@@ -3241,6 +3254,7 @@ function settingsBody(){
   const b = {keys, remove_keys: removeKeys, device: $('device').value};
   ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => b[k] = $(k).value);
   b.auto_update_check = $('pAutoUpd').checked;
+  b.helpers = {}; prefs.querySelectorAll('#pHelpers [data-h]').forEach(x => b.helpers[x.dataset.h] = x.checked);
   b.lesson_ai = $('lesson_ai').value; b.lesson_model = $('lesson_model').value;
   if ($('ghToken').value.trim()) b.github_token = $('ghToken').value.trim();
   if (removeGh) b.remove_github_token = true;
@@ -3400,7 +3414,7 @@ es.addEventListener('summarized', () => { const b = $('sumNowBtn'); b.disabled =
 es.addEventListener('clock', e => { const d = JSON.parse(e.data); if (d.kid !== S.kid) return; Object.assign(S, d); renderRec(); renderList(); });
 es.addEventListener('status', e => { S.status = JSON.parse(e.data).text; renderStatus(); });
 es.addEventListener('model', e => { S.model = JSON.parse(e.data); renderStatus(); });
-es.addEventListener('cfg', e => { S.cfg = Object.assign({}, JSON.parse(e.data), {ui: S.cfg.ui}); renderStatus(); document.querySelectorAll('.perN').forEach(x => x.textContent = parseInt(S.cfg.period, 10) || 10); });
+es.addEventListener('cfg', e => { S.cfg = Object.assign({}, JSON.parse(e.data), {ui: S.cfg.ui}); renderStatus(); document.querySelectorAll('.perN').forEach(x => x.textContent = parseInt(S.cfg.period, 10) || 10); if (S.cls) renderAids(); });
 es.addEventListener('level', e => { if (S.recording) setLevel(JSON.parse(e.data).v); });
 es.addEventListener('docs', e => {
   const d = JSON.parse(e.data); if (d.kid !== S.kid) return;
