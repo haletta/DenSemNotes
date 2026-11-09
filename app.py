@@ -29,7 +29,7 @@ from lesson import LessonBuilder, export_class, save_lesson, template_info, temp
 from live import Recorder, Summarizer, Transcriber  # noqa: E402
 from store import (APP_NAME, CFG_PATH, Library, class_meta, load_class, load_json, new_id, original_notes, save_class,
                    save_json)  # noqa: E402
-from words import TfIdf  # noqa: E402
+from words import TfIdf, fmt  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 import platform  # noqa: E402
@@ -81,6 +81,21 @@ def clone(x):
 
 
 # ---------------------------------------------------------------- shared state + events
+
+def _paragraphs(lines, size=90):
+    """Join transcript lines into readable paragraphs of about `size` words, breaking after a sentence."""
+    out, cur, n = [], [], 0
+    for x in lines:
+        if not x:
+            continue
+        cur.append(x)
+        n += len(x.split())
+        if n >= size and x.rstrip().endswith((".", "?", "!")):
+            out.append(" ".join(cur)); cur, n = [], 0
+    if cur:
+        out.append(" ".join(cur))
+    return out
+
 class Hub:
     def __init__(self):
         self.lock = threading.RLock()
@@ -818,6 +833,22 @@ class App:
         k = self.hub.lib.klass(kid) or {}
         return save_lesson(str(data.get("md", "")), self.hub.course_name(kid), k.get("name"))
 
+    def copy_transcript(self, data):
+        """The whole transcript of a class onto the Mac clipboard (plain, or with the time of each line)."""
+        kid = data.get("kid") or self.hub.kid
+        segs = self.hub.class_copy(kid).get("segs") or []
+        if not segs:
+            return {"ok": False, "error": "This class has no transcript yet."}
+        if data.get("times"):
+            text = "\n".join(f"[{fmt(x['t'])}] {x['text'].strip()}" for x in segs)
+        else:
+            text = "\n\n".join(_paragraphs([x["text"].strip() for x in segs]))
+        try:
+            subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True, timeout=10)
+        except Exception as e:
+            return {"ok": False, "error": f"Couldn't copy: {e}", "text": text}
+        return {"ok": True, "words": len(text.split())}
+
     def export(self, data):
         kid = data.get("kid") or self.hub.kid
         k = self.hub.lib.klass(kid) or {}
@@ -1062,6 +1093,7 @@ def make_handler(app):
                 "/lesson": lambda: app.make_lesson(data),
                 "/lesson/save": lambda: app.save_lesson(data),
                 "/export": lambda: app.export(data),
+                "/copy-transcript": lambda: app.copy_transcript(data),
                 "/class/open": lambda: app.open_class(data.get("id")),
                 "/class/new": lambda: app.new_class(data.get("course")),
                 "/summarize": lambda: app.summarize_now(data),
