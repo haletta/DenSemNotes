@@ -708,6 +708,28 @@ dialog h2{font:700 15px var(--font-display);margin:0}
 .field.wide{grid-template-columns:1fr}
 .field.wide > label{text-align:left}
 .check{display:flex;gap:7px;align-items:center;font-size:13px;padding-top:4px}
+.refpane{width:min(var(--ref-w,420px),40vw);min-width:300px;flex:none;display:flex;flex-direction:column;background:var(--bg-editor);border-left:1px solid var(--hairline)}
+.rf-h{display:flex;align-items:center;gap:4px;padding:10px 10px 6px 16px}
+.rf-t{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.rf-k{font:600 10px var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-color)}
+.rf-t b{font:650 15px var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf-t span:last-child{font-size:11.5px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf-bar{display:flex;align-items:center;gap:8px;padding:0 12px 8px 16px;border-bottom:1px solid var(--hairline)}
+.rf-recent{flex:1;min-width:0;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;justify-content:flex-end}
+.rf-recent::-webkit-scrollbar{display:none}
+.rf-recent button{flex:none;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:var(--bg-hover, rgba(128,128,128,.1));border-radius:999px;padding:2px 8px;font:500 11px var(--font-sans);color:var(--text-secondary)}
+.rf-recent button:hover{color:var(--text-main)}
+.rf-prep{padding:8px 12px 0 16px;flex:none}
+.rf-body{flex:1;min-height:0;overflow-y:auto;padding:6px 20px 28px;font-size:14px}
+.rf-body.tx p{display:grid;grid-template-columns:3.4rem 1fr;gap:10px;margin:0 0 9px;font-size:13px}
+.rf-body.tx time{color:var(--text-tertiary);font:12px var(--font-mono)}
+.rf-body .empty{color:var(--text-tertiary)}
+.rsplit[hidden],.refpane[hidden]{display:none}
+@media (max-width:940px){ .refpane{position:absolute;right:0;top:var(--tb-h);bottom:0;z-index:16;box-shadow:var(--shadow-pop);width:min(92vw,var(--ref-w,420px))} .rsplit{display:none} }
+body.focus .refpane,body.focus .rsplit{display:none}
+body.refopen .list{display:none}
+body.refopen .canvas{min-width:380px}
+@media (max-width:1320px){ body.refopen:not(.libopen) .sidebar{display:none} }
 .pane.prep{display:flex;flex-direction:column;padding:0;overflow:hidden}
 .pp-bar{display:flex;align-items:center;gap:4px;padding:8px 10px;border-bottom:1px solid var(--hairline);flex:none}
 .pp-chips{flex:1;min-width:0;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;outline:none}
@@ -930,6 +952,20 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
     <div class="busy" id="busy" hidden><div class="box"><b><span class="spin"></span><span id="busyTitle">Formatting your note</span></b><span id="busyText"></span></div></div>
   </main>
 
+  <div class="isplit rsplit" id="rsplit" role="separator" aria-orientation="vertical" aria-label="Resize reference" tabindex="0" hidden></div>
+  <section class="refpane" id="refPane" aria-label="Reference" hidden>
+    <div class="rf-h">
+      <div class="rf-t"><span class="rf-k">Reference</span><b id="rfName"></b><span id="rfSub"></span></div>
+      <button class="iconbtn sm" id="rfMore" aria-label="More"><svg class="i"><use href="#i-more"/></svg></button>
+      <button class="iconbtn sm" id="rfClose" aria-label="Close reference" title="Close reference (⌥⇧⌘W)"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="rf-bar">
+      <div class="seg sm" id="rfViews" role="group" aria-label="Show"><button data-v="notes" aria-pressed="true">Notes</button><button data-v="prep" aria-pressed="false">Prep</button><button data-v="tx" aria-pressed="false">Transcript</button></div>
+      <div class="rf-recent" id="rfRecent"></div>
+    </div>
+    <div class="pp-chips rf-prep" id="rfPrep" hidden></div>
+    <div class="rf-body" id="rfBody"></div>
+  </section>
   <div class="isplit" id="isplit" role="separator" aria-orientation="vertical" aria-label="Resize inspector" tabindex="0"></div>
   <aside class="inspector" id="insp" aria-label="Inspector">
     <div class="ins-h" role="tablist">
@@ -1458,8 +1494,9 @@ let libRaf = 0;
 function renderLibrarySoon(){ cancelAnimationFrame(libRaf); libRaf = requestAnimationFrame(renderLibrary); }
 
 /* actions */
-async function openClass(id){
+async function openClass(id, force){
   if (id === S.kid) return;
+  if (S.recording && !force) return openRef(id);  // keep recording; show the other class beside it
   await saveNow();
   const r = await post('/class/open', {id}); if (!r.ok) toast(r.error);
   document.body.classList.remove('libopen');
@@ -1530,7 +1567,8 @@ function courseMenu(c, anchor, at){
 function classMenu(k, c, anchor, at){
   const moves = S.lib.courses.filter(x => x.id !== c.id).map(x => ({label: x.name, act: () => moveClass(k.id, x.id)}));
   openMenu(anchor, [
-    {label: 'Open', act: () => openClass(k.id), disabled: k.id === S.kid},
+    {label: S.recording ? 'Open (stops recording)' : 'Open', act: () => S.recording ? toggleRec().then(() => openClass(k.id, true)) : openClass(k.id), disabled: k.id === S.kid},
+    {label: 'Open beside, for reference', act: () => openRef(k.id), disabled: k.id === S.kid},
     {label: 'New lesson from transcript & slides', act: () => lessonFromMaterial(k.id)},
     '-',
     {label: 'Rename', act: () => { const el = document.querySelector(`.card[data-id="${k.id}"] .nm`) || document.querySelector(`.sb-item[data-kid="${k.id}"] .nm`); el && renameInline(el, k.name, name => post('/class/rename', {id: k.id, name})); }},
@@ -3707,6 +3745,72 @@ es.addEventListener('prep', e => {
   S.cls.prep = d.prep.map(p => editing && p.id === editing.id ? {...p, text: editing.text} : p);
   renderPrep();
 });
+
+/* ---------- reference: another class kept open beside this one (recording goes on) ---------- */
+const REF = {d: null, view: 'notes', prep: null, recent: []};
+async function openRef(id, quiet){
+  if (id === S.kid) return closeRef();
+  const r = await post('/class/peek', {id});
+  if (!r.ok) return toast(r.error);
+  REF.d = r; REF.prep = null;
+  if (REF.view === 'prep' && !r.prep.length) REF.view = 'notes';
+  REF.recent = [id, ...REF.recent.filter(x => x !== id)].slice(0, 6);
+  $('refPane').hidden = $('rsplit').hidden = false; document.body.classList.add('refopen');
+  renderRef(); $('rfBody').scrollTop = 0;
+  if (!quiet && S.recording) toast(`Still recording in ${S.meta.name}. ${r.name} is open beside it for reference.`, 3500);
+}
+function closeRef(){ REF.d = null; $('refPane').hidden = $('rsplit').hidden = true; document.body.classList.remove('refopen'); }
+function renderRef(){
+  const d = REF.d; if (!d) return;
+  $('rfName').textContent = d.name;
+  $('rfSub').textContent = [d.course, d.date ? new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'}) : ''].filter(Boolean).join(' · ');
+  const pb = $('rfViews').querySelector('[data-v="prep"]'); pb.textContent = d.prep.length ? `Prep ${d.prep.length}` : 'Prep'; pb.disabled = !d.prep.length;
+  $('rfViews').querySelector('[data-v="tx"]').disabled = !d.segs.length;
+  $('rfViews').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === REF.view));
+  $('rfRecent').innerHTML = REF.recent.filter(id => id !== d.id).map(id => { const [k] = findClass(id); return k ? `<button data-id="${id}" title="${esc(k.name)}">${esc(k.name)}</button>` : ''; }).join('');
+  const body = $('rfBody'); body.className = 'rf-body' + (REF.view === 'tx' ? ' tx' : '');
+  $('rfPrep').hidden = REF.view !== 'prep' || d.prep.length < 2;
+  if (REF.view === 'tx'){
+    body.innerHTML = d.segs.map(x => `<p><time>${fmt(x.t)}</time><span${rtlText(x.text) ? ' dir="rtl"' : ''}>${esc(x.text)}</span></p>`).join('') || '<p class="empty">No transcript.</p>';
+    return;
+  }
+  let text;
+  if (REF.view === 'prep'){
+    const p = d.prep.find(x => x.id === REF.prep) || d.prep[0]; REF.prep = p && p.id;
+    $('rfPrep').innerHTML = d.prep.map(x => `<button class="pp-chip" data-id="${x.id}" aria-selected="${x.id === REF.prep}"><span>${esc(x.title)}</span></button>`).join('');
+    text = p ? p.text : '';
+  } else text = d.lines.join('\n');
+  const lines = text.split('\n'), [fm, start] = frontMatter(lines);
+  const ctx = {fm, gloss: glossaryOf(lines), section: '', steps: false, titled: true, metaHTML: ''};
+  body.innerHTML = text.trim() ? '<div class="reader">' + rblocks(lines.slice(start), start, ctx) + '</div>' : '<p class="empty">No notes in this class yet.</p>';
+  setDirs(body, 'p, li, h1, h2, h3, h4, td, th, blockquote > p, .callout p');
+  body.querySelectorAll('.diagram').forEach(drawDiagram);
+}
+$('rfClose').onclick = closeRef;
+$('rfViews').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; REF.view = b.dataset.v; renderRef(); $('rfBody').scrollTop = 0; });
+$('rfPrep').addEventListener('click', e => { const b = e.target.closest('.pp-chip'); if (!b) return; REF.prep = b.dataset.id; renderRef(); $('rfBody').scrollTop = 0; });
+$('rfRecent').addEventListener('click', e => { const b = e.target.closest('button'); if (b) openRef(b.dataset.id, true); });
+$('rfBody').addEventListener('click', e => {  // [[links]] in a reference open in the reference
+  const a = e.target.closest('.wlink'); if (!a) return;
+  const name = a.dataset.lesson.toLowerCase(); e.preventDefault(); e.stopPropagation();
+  const k = allClasses().find(x => (x.title || '').toLowerCase() === name || x.name.toLowerCase() === name);
+  if (k) openRef(k.id, true); else toast(`No lesson called “${a.dataset.lesson}” yet.`);
+}, true);
+$('rfMore').onclick = () => { const d = REF.d; if (!d) return; openMenu($('rfMore'), [
+  {label: 'Refresh', act: () => openRef(d.id, true)},
+  {label: 'Copy what’s shown', act: async () => { try { await navigator.clipboard.writeText($('rfBody').innerText); toast('Copied.'); } catch { toast("Couldn't copy."); } }},
+  '-',
+  S.recording ? {label: `Stop recording and switch to ${d.name.slice(0, 30)}`, act: async () => { await toggleRec(); closeRef(); openClass(d.id); }}
+              : {label: `Switch to ${d.name.slice(0, 40)}`, act: () => { closeRef(); openClass(d.id); }},
+]); };
+(() => {
+  const sp = $('rsplit'); let drag = false;
+  if (ui().refW) document.documentElement.style.setProperty('--ref-w', ui().refW + 'px');
+  sp.addEventListener('pointerdown', e => { drag = true; sp.setPointerCapture(e.pointerId); sp.classList.add('drag'); });
+  sp.addEventListener('pointermove', e => { if (!drag) return; const w = Math.min(window.innerWidth * 0.6, Math.max(300, $('refPane').getBoundingClientRect().right - e.clientX));
+    S.cfg.ui.refW = w; document.documentElement.style.setProperty('--ref-w', w + 'px'); });
+  sp.addEventListener('pointerup', () => { if (!drag) return; drag = false; sp.classList.remove('drag'); savePrefs({refW: Math.round(S.cfg.ui.refW)}); });
+})();
 es.onerror = () => flash('Lost contact with DenSemNotes. Reconnecting…');
 
 /* ======================================================================
@@ -3763,6 +3867,7 @@ const SHORTCUTS = [
   ['tx', 'Lecture', 'Transcript', 'Mod+3', () => toggleInspector('tx')],
   ['slides', 'Lecture', 'Slides', 'Mod+4', () => toggleInspector('sl')],
   ['prep', 'Lecture', 'Class prep', 'Mod+5', () => toggleInspector('prep')],
+  ['closeRef', 'View', 'Close the reference', 'Alt+Shift+Mod+W', () => closeRef()],
   ['newPrep', 'Lecture', 'New prep note', '', () => newPrep()],
   ['prevPrep', 'Lecture', 'Previous prep note', 'Alt+Mod+[', () => prepStep(-1)],
   ['nextPrep', 'Lecture', 'Next prep note', 'Alt+Mod+]', () => prepStep(1)],

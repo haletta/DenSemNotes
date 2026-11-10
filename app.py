@@ -433,6 +433,20 @@ class App:
         hub.emit("state", hub.snapshot())
         return {"ok": True}
 
+    def peek_class(self, kid):
+        """Another class, read-only, to keep beside the one being recorded. Doesn't touch the recording."""
+        k = self.hub.lib.klass(kid)
+        if not k:
+            return {"ok": False, "error": "That class no longer exists."}
+        s = self.hub.class_copy(kid)
+        c = self.hub.lib.course(k["course"]) or {}
+        return {"ok": True, "id": kid, "name": k["name"], "date": k.get("date", ""), "course": c.get("name", ""),
+                "courseIcon": c.get("icon", ""), "formatted": bool(s.get("formatted")),
+                "lines": [l.get("text", "") for l in s.get("lines", [])],
+                "segs": [{"t": x["t"], "text": x["text"]} for x in s.get("segs", [])],
+                "prep": [{"id": p["id"], "title": p.get("title", ""), "kind": p.get("kind"), "text": p.get("text", "")}
+                         for p in s.get("prep", []) if p.get("status") == "ready"]}
+
     def new_class(self, cid):
         k = self.hub.lib.new_class(cid or (self.hub.course_of(self.hub.kid) or {}).get("id"))
         return self.open_class(k["id"])
@@ -1152,6 +1166,7 @@ def make_handler(app):
                 "/lesson": lambda: app.make_lesson(data),
                 "/lesson/save": lambda: app.save_lesson(data),
                 "/export": lambda: app.export(data),
+                "/class/peek": lambda: app.peek_class(data.get("id")),
                 "/prep/new": lambda: app.prep.new(data),
                 "/prep/save": lambda: app.prep.save(data),
                 "/prep/delete": lambda: app.prep.delete(data),
