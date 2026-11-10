@@ -46,6 +46,23 @@ def class_passages(kid, s, course, klass):
             if words >= 80:
                 flush()
     flush()
+    # class prep: my prep notes and readings turned into notes, about 100 words each
+    for p in s.get("prep", []):
+        if p.get("status") != "ready":
+            continue
+        piece = []
+        for x in p.get("text", "").splitlines() + [""]:
+            if (re.match(r"^#{1,3} ", x) or not x.strip()) and sum(len(y.split()) for y in piece) >= 40 or len(piece) >= 12:
+                text = " ".join(_clean(y) for y in piece if y.strip())
+                if text:
+                    out.append({**base, "kind": "prep", "prep": p["id"], "t": None, "title": p.get("title", ""),
+                                "text": text, "weight": 1.05})
+                piece = []
+            if x.strip():
+                piece.append(x)
+        text = " ".join(_clean(y) for y in piece if y.strip())
+        if text:
+            out.append({**base, "kind": "prep", "prep": p["id"], "t": None, "title": p.get("title", ""), "text": text, "weight": 1.05})
     # lecture summaries
     ov = s.get("overall")
     if ov and (ov.get("summary") or ov.get("points")):

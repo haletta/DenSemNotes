@@ -708,6 +708,39 @@ dialog h2{font:700 15px var(--font-display);margin:0}
 .field.wide{grid-template-columns:1fr}
 .field.wide > label{text-align:left}
 .check{display:flex;gap:7px;align-items:center;font-size:13px;padding-top:4px}
+.pane.prep{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.pp-bar{display:flex;align-items:center;gap:4px;padding:8px 10px;border-bottom:1px solid var(--hairline);flex:none}
+.pp-chips{flex:1;min-width:0;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;outline:none}
+.pp-chips::-webkit-scrollbar{display:none}
+.pp-chip{flex:none;max-width:150px;border:1px solid var(--hairline);background:none;border-radius:999px;padding:3px 10px;font:500 12px var(--font-sans);color:var(--text-secondary);display:inline-flex;gap:5px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pp-chip span{overflow:hidden;text-overflow:ellipsis}
+.pp-chip:hover{color:var(--text-main)}
+.pp-chip[aria-selected="true"]{background:var(--accent-color);border-color:var(--accent-color);color:var(--accent-ink)}
+.pp-chip .k{font-size:10px;opacity:.75}
+.pp-chip .spin{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.25}to{opacity:1}}
+.pp-head{display:flex;align-items:center;gap:6px;padding:8px 12px 6px;flex:none}
+.pp-title{flex:1;min-width:0;border:0;background:none;font:650 15px var(--font-sans);color:var(--text-main);padding:3px 4px;border-radius:5px}
+.pp-title:hover,.pp-title:focus{background:var(--bg-hover, rgba(128,128,128,.1));outline:none}
+.pp-pos{font-size:11.5px;color:var(--text-tertiary);white-space:nowrap}
+.seg.sm{display:inline-flex;border:1px solid var(--hairline);border-radius:6px;overflow:hidden}
+.seg.sm button{border:0;background:none;padding:3px 8px;font:500 11.5px var(--font-sans);color:var(--text-secondary)}
+.seg.sm button[aria-pressed="true"]{background:var(--accent-color);color:var(--accent-ink)}
+.seg.sm button[hidden]{display:none}
+.pp-status{margin:0 14px 6px;font-size:12px;color:var(--text-secondary)}
+.pp-status.err{color:var(--danger, #d33)}
+.pp-read{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 28px;font-size:14px}
+.pp-edit{flex:1;min-height:0;margin:0 10px 10px;resize:none;border:1px solid var(--hairline);border-radius:8px;padding:10px 12px;background:var(--bg-editor);color:var(--text-main);font:13px/1.55 var(--font-mono);outline:none}
+.pp-edit:focus{border-color:var(--accent-color)}
+.pp-orig{flex:1;min-height:0;overflow-y:auto;padding:4px 12px 20px;display:grid;gap:10px}
+.pp-orig img{width:100%;border-radius:6px;border:1px solid var(--hairline);background:#fff}
+.pp-empty{padding:22px 18px;color:var(--text-secondary);font-size:13px;line-height:1.5}
+.pp-empty .row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.pp-empty small{color:var(--text-tertiary)}
+.pane.prep.drop{outline:2px dashed var(--accent-color);outline-offset:-6px}
+.ins-h{overflow-x:auto;scrollbar-width:none}
+.ins-h::-webkit-scrollbar{display:none}
+.ins-h [role="tab"]{flex:none}
 @font-face{font-family:"DS Hebrew";src:local("SBL Hebrew"),local("SBLHebrew"),local("Ezra SIL"),local("Taamey Frank CLM"),local("Times New Roman"),local("TimesNewRomanPSMT"),local("Arial Hebrew");unicode-range:U+0590-05FF,U+FB1D-FB4F;size-adjust:118%}
 @font-face{font-family:"DS Hebrew Sans";src:local("Arial Hebrew"),local("ArialHebrew"),local("Lucida Grande"),local("Arial");unicode-range:U+0590-05FF,U+FB1D-FB4F;size-adjust:112%}
 .ln[dir="rtl"],#reader [dir="rtl"],#tx p[dir="rtl"] span{text-align:right}
@@ -790,6 +823,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
   <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></symbol>
   <symbol id="i-ask" viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4zM18.5 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9zM5.5 15.5l.7 1.6 1.6.7-1.6.7-.7 1.6-.7-1.6-1.6-.7 1.6-.7z"/></symbol>
   <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h11M4 18h8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/></symbol>
   <symbol id="i-slides" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M12 16.5V20M8.5 20h7"/></symbol>
   <symbol id="i-focus" viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><circle cx="12" cy="12" r="2.6"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="12" rx="2"/><path d="M15.5 5.5V5A1.5 1.5 0 0 0 14 3.5H5.5A1.5 1.5 0 0 0 4 5v9.5A1.5 1.5 0 0 0 5.5 16h1"/></symbol><symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3.5M8 7.5l4-4 4 4"/><path d="M8.5 11H6.5A1.5 1.5 0 0 0 5 12.5v6A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-2"/></symbol>
@@ -850,6 +884,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
       <button data-insp="ask" title="Ask your notes (⌘2)" aria-label="Ask"><svg class="i"><use href="#i-ask"/></svg></button>
       <button data-insp="tx" title="Transcript (⌘3)" aria-label="Transcript"><svg class="i"><use href="#i-text"/></svg></button>
       <button data-insp="sl" title="Slides (⌘4)" aria-label="Slides"><svg class="i"><use href="#i-slides"/></svg><span class="ping" id="slPingT" hidden></span></button>
+      <button data-insp="prep" title="Class prep (⌘5)" aria-label="Class prep"><svg class="i"><use href="#i-book"/></svg></button>
     </div>
     <button class="tbtn" id="aaBtn" title="Appearance" aria-label="Appearance"><span class="aa">Aa</span></button>
     <button class="tbtn" id="focusBtn" title="Focus (⌘D)" aria-label="Focus mode"><svg class="i"><use href="#i-focus"/></svg></button>
@@ -902,6 +937,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
       <button role="tab" id="tab-ask" aria-controls="askPane" aria-selected="false">Ask</button>
       <button role="tab" id="tab-tx" aria-controls="txPane" aria-selected="false">Transcript <span class="badge" id="wordCount"></span></button>
       <button role="tab" id="tab-sl" aria-controls="slidePane" aria-selected="false">Slides <span class="badge" id="docCount"></span><span class="ping" id="slPing" hidden></span></button>
+      <button role="tab" id="tab-prep" aria-controls="prepPane" aria-selected="false">Prep <span class="badge" id="prepCount"></span></button>
       <span class="sp"></span>
       <button class="iconbtn sm" id="inspClose" aria-label="Close inspector" title="Close"><svg class="i"><use href="#i-x"/></svg></button>
     </div>
@@ -970,6 +1006,32 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
         </div>
         <div class="dropzone" id="dropzone"><b>Add slides, documents or PDFs</b><br>Drop files here or press Upload. PowerPoint, Keynote, Word, Pages, PDF, text and photos of the board all work.<br><br>Notes you type while a slide is showing are linked to it.</div>
       </div>
+    </div>
+      <div class="pane prep" id="prepPane" role="tabpanel" aria-labelledby="tab-prep" hidden>
+      <div class="pp-bar">
+        <button class="iconbtn sm" id="ppPrev" aria-label="Previous prep note" title="Previous (⌥⌘[)"><svg class="i"><use href="#i-left"/></svg></button>
+        <div class="pp-chips" id="ppChips" role="listbox" aria-label="Prep notes" tabindex="0"></div>
+        <button class="iconbtn sm" id="ppNext" aria-label="Next prep note" title="Next (⌥⌘])"><svg class="i"><use href="#i-right"/></svg></button>
+        <button class="btn sm" id="ppAdd" title="New prep note or upload a reading"><svg class="i"><use href="#i-plus"/></svg>Add</button>
+      </div>
+      <div class="pp-head" id="ppHead" hidden>
+        <input class="pp-title" id="ppTitle" aria-label="Title" maxlength="120" spellcheck="false">
+        <span class="pp-pos" id="ppPos"></span>
+        <div class="seg sm" id="ppViews" role="group" aria-label="View">
+          <button data-v="read" aria-pressed="true">Read</button><button data-v="edit" aria-pressed="false">Edit</button><button data-v="orig" aria-pressed="false" id="ppOrigBtn">Original</button>
+        </div>
+        <button class="iconbtn sm" id="ppMore" aria-label="More"><svg class="i"><use href="#i-more"/></svg></button>
+      </div>
+      <p class="pp-status" id="ppStatus" hidden></p>
+      <article class="reader pp-read" id="ppRead" hidden></article>
+      <textarea class="pp-edit" id="ppEdit" hidden spellcheck="true" placeholder="Write your prep notes in Markdown: # title, ## sections, - bullets, **bold**, ==key term==, > [!TIP] callouts…"></textarea>
+      <div class="pp-orig" id="ppOrig" hidden></div>
+      <div class="pp-empty" id="ppEmpty">
+        <p><b>Prepare for class.</b> Write notes before the lecture, or upload readings (PDF, Word, Pages, PowerPoint) and they're turned into notes. Add as many as you like and flip between them here.</p>
+        <div class="row"><button class="btn primary" id="ppNewBtn"><svg class="i"><use href="#i-pen"/></svg>New prep note</button><button class="btn" id="ppUpBtn"><svg class="i"><use href="#i-import"/></svg>Upload readings</button></div>
+        <small>You can also drop files on this tab. Prep notes help the class notes get terms and spellings right, and Ask searches them too.</small>
+      </div>
+      <input type="file" id="ppFile" multiple hidden accept=".pdf,.doc,.docx,.pages,.rtf,.odt,.txt,.md,.html,.htm,.ppt,.pptx,.key,.odp,.png,.jpg,.jpeg,.heic">
     </div>
   </aside>
 </div>
@@ -2366,7 +2428,7 @@ function flashEl(el){ if (!el) return; el.scrollIntoView({block: 'center', behav
 /* ask my notes */
 let askScope = 'class';
 const SCOPE_TXT = {class: 'this class', course: 'this course', all: 'all courses'};
-const KIND_TXT = {note: 'My notes', summary: 'Lecture summary', heard: 'Heard in class', transcript: 'Transcript'};
+const KIND_TXT = {note: 'My notes', summary: 'Lecture summary', heard: 'Heard in class', transcript: 'Transcript', prep: 'Class prep'};
 $('askScope').onclick = e => { const b = e.target.closest('button'); if (!b) return; askScope = b.dataset.scope;
   $('askScope').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
 $('askQ').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('askGo').click(); } });
@@ -2428,6 +2490,7 @@ function goSource(src){
 }
 function doNav(src){
   if (src.kind === 'note' && src.line != null && src.line < L.length) return focusLine(src.line);
+  if (src.kind === 'prep'){ showTab('prep'); return prepGo(src.prep, 'read'); }
   if (src.kind === 'summary'){ showTab('sum'); return flashEl($('blocks').querySelector(`[data-bid="${src.block}"]`)); }
   if (src.kind === 'heard'){ showTab('sum'); if (aidFilter() !== 'all'){ savePrefs({aidFilter: 'all'}); renderAids(); } return flashEl($('aids').querySelector(`li[data-id="${src.point}"]`) || $('blocks').querySelector(`li[data-id="${src.point}"]`)); }
   if (src.t != null) jumpTo(src.t);
@@ -2913,9 +2976,9 @@ function toggleFocus(force){
   if (on){ toast(`Focus · ${scLabel('focus') ? scLabel('focus') + ' or ' : ''}Esc to leave`, 1800); setTimeout(() => ed.focus(), 50); }
 }
 function setTab(which){
-  if (!['sum', 'ask', 'tx', 'sl'].includes(which)) which = 'sum';
+  if (!['sum', 'ask', 'tx', 'sl', 'prep'].includes(which)) which = 'sum';
   tab = which;
-  [['sum', 'sumPane'], ['ask', 'askPane'], ['tx', 'txPane'], ['sl', 'slidePane']].forEach(([k, id]) => { $('tab-' + k).setAttribute('aria-selected', k === which); $(id).hidden = k !== which; });
+  [['sum', 'sumPane'], ['ask', 'askPane'], ['tx', 'txPane'], ['sl', 'slidePane'], ['prep', 'prepPane']].forEach(([k, id]) => { $('tab-' + k).setAttribute('aria-selected', k === which); $(id).hidden = k !== which; });
   document.querySelectorAll('[data-insp]').forEach(b => b.setAttribute('aria-pressed', !$('insp').hidden && b.dataset.insp === which));
 }
 function showTab(which){
@@ -2927,6 +2990,7 @@ function showTab(which){
   if (which === 'tx'){ const p = $('txPane'); p.scrollTop = p.scrollHeight; }
   if (which === 'sl'){ $('slPing').hidden = true; $('slPingT').hidden = true; renderSlides(); }
   if (which === 'ask') setTimeout(() => $('askQ').focus(), 30);
+  if (which === 'prep') renderPrep();
 }
 function toggleInspector(which){
   if (!$('insp').hidden && tab === which && !ui().focus){ savePrefs({insp: ''}); applyLayout(); return; }
@@ -2935,7 +2999,7 @@ function toggleInspector(which){
 document.querySelectorAll('[data-insp]').forEach(b => b.onclick = () => toggleInspector(b.dataset.insp));
 $('insp').querySelector('[role="tablist"]').addEventListener('click', e => { const b = e.target.closest('[role="tab"]'); if (b) showTab(b.id.slice(4)); });
 $('insp').querySelector('[role="tablist"]').addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-  const ks = ['sum', 'ask', 'tx', 'sl']; const n = ks[(ks.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : -1) + 4) % 4]; showTab(n); $('tab-' + n).focus(); });
+  const ks = ['sum', 'ask', 'tx', 'sl', 'prep']; const n = ks[(ks.indexOf(tab) + (e.key === 'ArrowRight' ? 1 : -1) + ks.length) % ks.length]; showTab(n); $('tab-' + n).focus(); });
 $('inspClose').onclick = () => { savePrefs({insp: ''}); applyLayout(); };
 $('sideBtn').onclick = toggleLibrary;
 $('focusBtn').onclick = () => toggleFocus();
@@ -3434,7 +3498,7 @@ $('setTest').onclick = async () => {
    EVENTS FROM THE APP
    ====================================================================== */
 function renderAll(){
-  applyAppearance(); applyLayout(); applyZoom(); applyDiscreet(); refreshKeyHints(); renderLibrary(); renderLive(true); renderAsks(); renderTx(); renderTopic(); renderRec(); renderStatus(); renderSlides(); renderBanner();
+  applyAppearance(); applyLayout(); applyZoom(); applyDiscreet(); refreshKeyHints(); renderLibrary(); renderLive(true); renderAsks(); renderTx(); renderTopic(); renderRec(); renderStatus(); renderSlides(); renderPrep(); renderBanner();
   $('followChk').checked = !!ui().follow;
   $('followNotesChk').checked = ui().followNotes !== false;
   document.querySelectorAll('.perN').forEach(x => x.textContent = parseInt(S.cfg.period, 10) || 10);
@@ -3504,6 +3568,145 @@ es.addEventListener('formatted', e => {
   edKid = S.kid; loadEditor(d.lines); setBusy(null); setView(!d.restored ? 'read' : 'edit'); $('edwrap').scrollTop = 0;
   toast(d.restored ? 'Your original notes are back' : d.back ? 'The earlier version is back' : (d.note ? 'Formatted (basic version, see Details)' : 'Formatted as a MyNotes lesson'));
 });
+
+/* ---------- class prep: notes before class, readings turned into notes ---------- */
+const prepCur = {};           // class id -> the prep item on screen
+let prepView = 'read', prepTimer = 0, prepDirty = null;
+const prepItems = () => (S.cls && S.cls.prep) || [];
+function prepItem(){ const it = prepItems(); return it.find(p => p.id === prepCur[S.kid]) || it[0] || null; }
+function renderPrepCount(){ const n = prepItems().length; $('prepCount').textContent = n || ''; }
+function renderPrep(){
+  renderPrepCount();
+  if ($('prepPane').hidden) return;
+  const items = prepItems(), cur = prepItem();
+  if (cur) prepCur[S.kid] = cur.id;
+  $('ppEmpty').hidden = !!cur; $('ppHead').hidden = !cur;
+  $('ppPrev').disabled = $('ppNext').disabled = items.length < 2;
+  const chips = $('ppChips'), hadFocus = chips.contains(document.activeElement);
+  chips.innerHTML = items.map(p => `<button class="pp-chip" role="option" data-id="${p.id}" aria-selected="${cur && p.id === cur.id}" title="${esc(p.title)}">${p.status === 'converting' ? '<i class="spin"></i>' : `<span class="k">${p.kind === 'file' ? '📄' : '✎'}</span>`}<span>${esc(p.title)}</span></button>`).join('');
+  const sel = chips.querySelector('[aria-selected="true"]'); if (sel){ sel.scrollIntoView({block: 'nearest', inline: 'nearest'}); if (hadFocus) sel.focus(); }
+  if (!cur){ ['ppRead', 'ppEdit', 'ppOrig', 'ppStatus'].forEach(id => $(id).hidden = true); return; }
+  if (document.activeElement !== $('ppTitle')) $('ppTitle').value = cur.title;
+  $('ppPos').textContent = items.length > 1 ? `${items.indexOf(cur) + 1} of ${items.length}` : '';
+  const hasOrig = cur.kind === 'file' && cur.src && cur.src.pages;
+  $('ppOrigBtn').hidden = !hasOrig;
+  if (prepView === 'orig' && !hasOrig) prepView = 'read';
+  const busy = cur.status === 'converting';
+  const st = $('ppStatus'); st.className = 'pp-status' + (cur.status === 'error' ? ' err' : '');
+  st.hidden = !(busy || cur.status === 'error' || (cur.kind === 'file' && cur.by === 'text' && prepView !== 'orig'));
+  st.textContent = busy ? (cur.note || 'Turning it into notes…') : cur.status === 'error' ? `Couldn't read this file: ${cur.error}` : 'Laid out without AI. Turn on an AI in Preferences › AI, then ⋯ › Turn into notes again.';
+  $('ppViews').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === prepView));
+  $('ppRead').hidden = prepView !== 'read' || busy; $('ppEdit').hidden = prepView !== 'edit' || busy; $('ppOrig').hidden = prepView !== 'orig';
+  if (prepView === 'read' && !busy){
+    const lines = (cur.text || '').split('\n'); const [fm, start] = frontMatter(lines);
+    const ctx = {fm, gloss: glossaryOf(lines), section: '', steps: false, titled: true, metaHTML: ''};
+    const r = $('ppRead');
+    r.innerHTML = (cur.text || '').trim() ? rblocks(lines.slice(start), start, ctx) : '<p class="empty">Nothing here yet. Click <b>Edit</b> to write.</p>';
+    setDirs(r, 'p, li, h1, h2, h3, h4, td, th, blockquote > p, .callout p');
+    r.querySelectorAll('.diagram').forEach(drawDiagram);
+  }
+  if (prepView === 'edit' && !busy){
+    const t = $('ppEdit');
+    if (t.dataset.id !== cur.id || (document.activeElement !== t && prepDirty !== cur.id)){ t.value = cur.text || ''; t.dataset.id = cur.id; }
+    t.dir = rtlText(t.value.slice(0, 400)) ? 'rtl' : 'auto';
+  }
+  if (prepView === 'orig' && hasOrig){
+    const o = $('ppOrig');
+    if (o.dataset.id !== cur.id){ o.dataset.id = cur.id; o.innerHTML = Array.from({length: cur.src.pages}, (_, i) => `<img loading="lazy" alt="Page ${i + 1}" src="/page/${S.kid}/prep_${cur.id}/${i + 1}?w=900">`).join(''); o.scrollTop = 0; }
+  }
+}
+function prepGo(id, view){
+  flushPrep();
+  prepCur[S.kid] = id; if (view) prepView = view;
+  $('ppRead').scrollTop = 0; renderPrep();
+}
+function prepStep(d){
+  const it = prepItems(); if (!it.length) return;
+  if ($('prepPane').hidden) showTab('prep');
+  const i = it.indexOf(prepItem()); prepGo(it[(i + d + it.length) % it.length].id);
+}
+async function newPrep(){
+  flushPrep(); showTab('prep');
+  const r = await post('/prep/new', {kid: S.kid});
+  if (!r.ok) return toast(r.error);
+  prepCur[S.kid] = r.id; prepView = 'edit';
+  setTimeout(() => { renderPrep(); $('ppEdit').focus(); }, 60);
+}
+async function uploadPrep(files){
+  files = [...files]; if (!files.length) return; showTab('prep');
+  let first = null;
+  for (const f of files){
+    if (f.size > 300 * 1024 * 1024){ toast(`${f.name} is over 300 MB.`); continue; }
+    toast(files.length > 1 ? `Uploading ${f.name} (${files.indexOf(f) + 1} of ${files.length})…` : `Uploading ${f.name}…`, 2000);
+    try {
+      const r = await fetch(`/prep/upload?kid=${encodeURIComponent(S.kid)}&name=${encodeURIComponent(f.name)}`, {method: 'POST', body: await fileBody(f)}).then(r => r.json());
+      if (!r.ok){ toast(r.error, 6000); continue; }
+      if (!first){ first = r.id; prepCur[S.kid] = r.id; prepView = 'read'; renderPrep(); }
+    } catch { toast(`Couldn't upload ${f.name}.`); }
+  }
+}
+function flushPrep(){
+  if (!prepDirty) return;
+  clearTimeout(prepTimer);
+  const id = prepDirty; prepDirty = null;
+  const p = prepItems().find(x => x.id === id); if (!p) return;
+  post('/prep/save', {kid: S.kid, id, text: p.text, emit: false});
+}
+$('ppEdit').addEventListener('input', e => {
+  const p = prepItems().find(x => x.id === e.target.dataset.id); if (!p) return;
+  p.text = e.target.value; prepDirty = p.id;
+  clearTimeout(prepTimer); prepTimer = setTimeout(flushPrep, 700);
+});
+$('ppEdit').addEventListener('blur', flushPrep);
+$('ppEdit').addEventListener('keydown', e => { if (e.key === 'Escape'){ e.preventDefault(); prepGo(prepItem().id, 'read'); } });
+$('ppTitle').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === 'Escape'){ e.preventDefault(); e.target.blur(); } });
+$('ppTitle').addEventListener('change', e => { const p = prepItem(); if (!p) return; p.title = e.target.value.trim() || p.title; post('/prep/save', {kid: S.kid, id: p.id, title: p.title}); });
+$('ppChips').addEventListener('click', e => { const b = e.target.closest('.pp-chip'); if (b) prepGo(b.dataset.id); });
+$('ppChips').addEventListener('dblclick', e => { if (e.target.closest('.pp-chip')) setTimeout(() => $('ppTitle').select(), 0); });
+$('ppChips').addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft'){ e.preventDefault(); prepStep(e.key === 'ArrowRight' ? 1 : -1); } });
+$('ppChips').addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){ e.currentTarget.scrollLeft += e.deltaY; e.preventDefault(); } }, {passive: false});
+$('ppPrev').onclick = () => prepStep(-1);
+$('ppNext').onclick = () => prepStep(1);
+$('ppViews').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; prepGo(prepItem().id, b.dataset.v); if (b.dataset.v === 'edit') $('ppEdit').focus(); });
+$('ppAdd').onclick = () => openMenu($('ppAdd'), [
+  {label: 'New prep note', kbd: scLabel('newPrep'), act: newPrep},
+  {label: 'Upload readings (PDF, Word, slides…)', act: () => $('ppFile').click()},
+]);
+$('ppNewBtn').onclick = newPrep;
+$('ppUpBtn').onclick = () => $('ppFile').click();
+$('ppFile').onchange = e => { uploadPrep(e.target.files); e.target.value = ''; };
+$('ppMore').onclick = () => {
+  const p = prepItem(); if (!p) return;
+  const it = prepItems(), i = it.indexOf(p);
+  openMenu($('ppMore'), [
+    {label: 'Rename', act: () => $('ppTitle').select()},
+    {label: 'Copy notes', act: async () => { try { await navigator.clipboard.writeText(p.text || ''); toast('Copied.'); } catch { toast("Couldn't copy."); } }},
+    {label: 'Add to the end of my class notes', act: () => { appendToNotes(['', `## Prep: ${p.title}`, ...(p.text || '').replace(/^# .*\n+/, '').split('\n')], null, null); toast('Added to your notes.'); }},
+    ...(p.kind === 'file' ? [{label: 'Turn into notes again', disabled: p.status === 'converting', act: async () => { const r = await post('/prep/reconvert', {kid: S.kid, id: p.id}); if (!r.ok) toast(r.error); }}] : []),
+    '-',
+    {label: 'Move left', disabled: i <= 0, act: () => post('/prep/move', {kid: S.kid, id: p.id, to: i - 1})},
+    {label: 'Move right', disabled: i >= it.length - 1, act: () => post('/prep/move', {kid: S.kid, id: p.id, to: i + 1})},
+    '-',
+    {label: `Delete "${p.title.slice(0, 40)}"…`, danger: true, act: () => openMenu($('ppMore'), [
+      {head: p.kind === 'file' ? 'Delete this reading and its notes?' : 'Delete this prep note?'},
+      {label: 'Delete', danger: true, act: async () => { const n = it[i + 1] || it[i - 1]; prepCur[S.kid] = n ? n.id : null; prepDirty = null; await post('/prep/delete', {kid: S.kid, id: p.id}); }},
+      {label: 'Cancel', act: () => {}},
+    ])},
+  ]);
+};
+(() => {  // drop readings straight onto the Prep tab
+  const pane = $('prepPane');
+  pane.addEventListener('dragover', e => { if (hasFiles(e)){ e.preventDefault(); pane.classList.add('drop'); } });
+  pane.addEventListener('dragleave', e => { if (!pane.contains(e.relatedTarget)) pane.classList.remove('drop'); });
+  pane.addEventListener('drop', e => { if (!hasFiles(e)) return; e.preventDefault(); e.stopPropagation(); pane.classList.remove('drop');
+    dragDepth = 0; document.body.classList.remove('dragfiles'); uploadPrep(e.dataTransfer.files); });
+})();
+es.addEventListener('prep', e => {
+  const d = JSON.parse(e.data); if (d.kid !== S.kid) return;
+  const editing = prepDirty && prepItems().find(p => p.id === prepDirty);
+  S.cls.prep = d.prep.map(p => editing && p.id === editing.id ? {...p, text: editing.text} : p);
+  renderPrep();
+});
 es.onerror = () => flash('Lost contact with DenSemNotes. Reconnecting…');
 
 /* ======================================================================
@@ -3559,6 +3762,10 @@ const SHORTCUTS = [
   ['ask', 'Lecture', 'Ask your notes', 'Mod+2', () => toggleInspector('ask')],
   ['tx', 'Lecture', 'Transcript', 'Mod+3', () => toggleInspector('tx')],
   ['slides', 'Lecture', 'Slides', 'Mod+4', () => toggleInspector('sl')],
+  ['prep', 'Lecture', 'Class prep', 'Mod+5', () => toggleInspector('prep')],
+  ['newPrep', 'Lecture', 'New prep note', '', () => newPrep()],
+  ['prevPrep', 'Lecture', 'Previous prep note', 'Alt+Mod+[', () => prepStep(-1)],
+  ['nextPrep', 'Lecture', 'Next prep note', 'Alt+Mod+]', () => prepStep(1)],
   ['nextPage', 'Lecture', 'Next slide', 'Alt+Mod+→', () => stepPage(1)],
   ['prevPage', 'Lecture', 'Previous slide', 'Alt+Mod+←', () => stepPage(-1)],
   ['linkSlide', 'Lecture', 'Link line to slide', 'Shift+Mod+L', () => linkSlide()],
@@ -3617,7 +3824,7 @@ function runShortcut(e, fromEditor){
   return false;
 }
 const HINTS = [['#zoomIn', 'zoomIn'], ['#zoomOut', 'zoomOut'], ['#sideBtn', 'library'], ['#newBtn', 'newClass'], ['#listNew', 'newClass'], ['#listImport', 'importClass'], ['#missBtn', 'miss'], ['#catchBtn', 'miss'],
-  ['[data-insp="sum"]', 'live'], ['[data-insp="ask"]', 'ask'], ['[data-insp="tx"]', 'tx'], ['[data-insp="sl"]', 'slides'], ['#focusBtn', 'focus'],
+  ['[data-insp="sum"]', 'live'], ['[data-insp="ask"]', 'ask'], ['[data-insp="tx"]', 'tx'], ['[data-insp="sl"]', 'slides'], ['[data-insp="prep"]', 'prep'], ['#ppPrev', 'prevPrep'], ['#ppNext', 'nextPrep'], ['#focusBtn', 'focus'],
   ['#setBtn', 'prefs'], ['#aaBtn', 'aa'], ['#prevPg', 'prevPage'], ['#nextPg', 'nextPage'], ['#slLinkBtn', 'linkSlide'], ['#search', 'search']];
 function refreshKeyHints(){
   for (const [sel, id] of HINTS) document.querySelectorAll(sel).forEach(el => {

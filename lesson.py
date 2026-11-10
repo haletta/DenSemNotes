@@ -255,6 +255,11 @@ def build_prompt(s, opts, cap_words, slide_text, doc_pages=None, doc_budget=2500
         parts.append("ABOUT THIS COURSE (from the student): " + opts["brief"])
     if opts.get("taught") == "he":
         parts.append(HEBREW)
+    if opts.get("prep"):
+        parts.append("(F) MY CLASS PREP (notes I wrote before class, and readings turned into notes). The lesson is about "
+                     "what was taught in class: use the prep to get names, terms, spellings, references and the "
+                     "structure right, and to fill in a detail the lecturer pointed to. Don't add prep material the "
+                     "lecture didn't cover.\n" + opts["prep"])
     if opts.get("earlier"):
         parts.append(EARLIER + "\n" + opts["earlier"])
     if "wrote" in sources and "heard" in sources:
@@ -588,6 +593,8 @@ class LessonBuilder:
                     from store import course_taught
                     c = hub.course_of(kid) or {}
                     opts = {**opts, "taught": course_taught(c), "brief": c.get("context", "")}
+                    from prep import prep_material
+                    opts["prep"] = prep_material(s, 4000 if lesson_budget(hub.cfg) >= 10000 else 600)
                     if hub.cfg["ui"].get("reviewEarlier", True):
                         try:
                             opts = {**opts, "earlier": earlier_material(hub, kid, s, doc_pages,

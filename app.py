@@ -256,6 +256,10 @@ class Hub:
                     "and transliteration (\"שָׁלוֹם (shalom)\"), meaning = its English meaning as taught, dict = a short "
                     "gloss. A rule of Hebrew grammar the teacher gave is a \"point\" stating the rule. Never list Hebrew "
                     "words or transliterations as a difficult \"word\".")
+        elif what == "prep":
+            return ("\n\nHEBREW CLASS: keep the reading's Hebrew exactly as written (vowel points included). The first "
+                    "time a Hebrew word appears, follow it with its transliteration in brackets and its meaning if the "
+                    "reading gives it, e.g. שָׁלוֹם (shalom), \"peace\". Grammar terms stay in English.")
         elif what == "summary":
             out += ("\nIn the summary and details, keep the Hebrew words and forms the lecturer taught, each written "
                     "as above with its meaning, and any rule or paradigm they gave.")
@@ -361,6 +365,8 @@ class App:
         self.importer = Importer(self)
         self.hub.lesson_hook = self.importer.notes_finished
         self.lesson = LessonBuilder(self.hub)
+        from prep import Prep
+        self.prep = Prep(self)
         self.rec = None
 
     # -- recording
@@ -1082,6 +1088,19 @@ def make_handler(app):
                 except ValueError:
                     return self._json({"ok": False, "error": "That file is over 1.2 GB."})
                 return self._json(app.importer.lecture_file((q.get("kid") or [""])[0], (q.get("name") or ["lecture.txt"])[0], body))
+            if url.path == "/prep/upload":
+                q = urllib.parse.parse_qs(url.query)
+                if n > MAX_UPLOAD:
+                    self.rfile.read(n)
+                    return self._json({"ok": False, "error": "That file is over 300 MB."})
+                try:
+                    body = self.read_body(MAX_UPLOAD)
+                    return self._json(app.prep.upload((q.get("kid") or [""])[0], (q.get("name") or ["file"])[0], body))
+                except ValueError as e:
+                    return self._json({"ok": False, "error": str(e) if "class" in str(e) else "That file is over 300 MB."})
+                except Exception as e:
+                    traceback.print_exc()
+                    return self._json({"ok": False, "error": str(e)}, 500)
             if url.path == "/upload":
                 if n > MAX_UPLOAD:
                     self.rfile.read(n)
@@ -1133,6 +1152,11 @@ def make_handler(app):
                 "/lesson": lambda: app.make_lesson(data),
                 "/lesson/save": lambda: app.save_lesson(data),
                 "/export": lambda: app.export(data),
+                "/prep/new": lambda: app.prep.new(data),
+                "/prep/save": lambda: app.prep.save(data),
+                "/prep/delete": lambda: app.prep.delete(data),
+                "/prep/move": lambda: app.prep.move(data),
+                "/prep/reconvert": lambda: app.prep.reconvert(data),
                 "/copy-transcript": lambda: app.copy_transcript(data),
                 "/class/open": lambda: app.open_class(data.get("id")),
                 "/class/new": lambda: app.new_class(data.get("course")),
