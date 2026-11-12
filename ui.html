@@ -995,7 +995,7 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
      </div>
      <div class="lv-split" id="lvSplit" role="separator" aria-orientation="horizontal" aria-label="Resize summary and note helper" tabindex="0"></div>
      <div class="lv-bot" id="lvBot">
-      <div class="lv-h"><b>Note helper</b><span class="lvdot" id="aidDot" title="Listening"></span><span class="sp"></span><span class="aidn" id="aidCount"></span></div>
+      <div class="lv-h"><b>Note helper</b><span class="lvdot" id="aidDot" title="Listening"></span><span class="sp"></span><span class="aidn" id="aidCount"></span><button class="btn sm" id="aidAddAll" hidden title="Add every item that isn't in your notes yet, in lecture order">Add all to notes</button></div>
       <div class="aidchips" id="aidChips" role="group" aria-label="Show">
         <button data-k="all" aria-pressed="true">All</button><button data-k="point" aria-pressed="false">Points</button><button data-k="quote" aria-pressed="false">Quotes</button><button data-k="source" aria-pressed="false">Books</button><button data-k="term" aria-pressed="false">Terms</button><button data-k="word" aria-pressed="false" title="Difficult words with a dictionary definition">Words</button><button data-k="example" aria-pressed="false">Examples</button><button data-k="deadline" aria-pressed="false">Due</button>
       </div>
@@ -2273,7 +2273,8 @@ function aidLines(p){
     case 'term': return [`- ==${p.title}==: ${det}` + (p.dict ? ` *(dictionary: ${p.dict})*` : '')];
     case 'word': return [`- ==${p.title}==${p.pos ? ` *(${p.pos})*` : ''}: ${det}`];
     case 'example': return ['> [!EXAMPLE]', '> ' + p.title];
-    case 'point': return [`- **${p.title}**`];
+    case 'point': { const m = p.title.match(/^([^:]{2,60}):\s+(.+)$/);
+      return [m ? `- **${m[1]}**: ${m[2]}` : `- ${p.title}`].concat(det ? ['  - ' + det] : []); }
     default: return [`- ${p.title}${det ? ': ' + det : ''}`];
   }
 }
@@ -2318,10 +2319,12 @@ function pointEl(p, cls){
   if (meta.childNodes.length) body.append(meta);
   const act = document.createElement('div'); act.className = 'pact';
   const add = document.createElement('button'); add.className = 'add'; add.textContent = '+'; add.title = 'Copy into my notes'; add.setAttribute('aria-label', 'Copy into my notes');
-  add.onclick = () => { appendToNotes(aidLines(p), p.t, p.sl); add.textContent = '✓'; add.classList.add('done'); };
+  if (p.added){ add.textContent = '✓'; add.classList.add('done'); add.title = 'In your notes (click to add again)'; }
+  add.onclick = () => { appendToNotes(aidLines(p), p.t, p.sl); add.textContent = '✓'; add.classList.add('done'); p.added = true; post('/point/added', {kid: S.kid, ids: [p.id]}); };
   const del = document.createElement('button'); del.className = 'del'; del.textContent = '✕'; del.title = 'Remove'; del.setAttribute('aria-label', 'Remove this live note');
   if (p.kind === 'word'){ del.title = 'I know this word: remove it and don’t flag it again'; del.setAttribute('aria-label', 'I know this word'); }
-  del.onclick = () => post('/point/delete', Object.assign({kid: S.kid, id: p.id}, p.kind === 'word' ? {known: p.title} : {}));
+  if (p.kind === 'term'){ del.title = 'Not a key term: remove it and don’t suggest it again'; del.setAttribute('aria-label', 'Not a key term'); }
+  del.onclick = () => post('/point/delete', Object.assign({kid: S.kid, id: p.id}, p.kind === 'word' ? {known: p.title} : p.kind === 'term' ? {known_term: p.title} : {}));
   act.append(add, del);
   li.append(tm, body, act);
   li.addEventListener('animationend', () => li.classList.remove('new', 'upd'), {once: true});
@@ -2434,9 +2437,19 @@ function renderAids(initial){
   $('emptyAids').hidden = items.length > 0;
 
   $('aidCount').textContent = items.length ? `${items.length} item${items.length > 1 ? 's' : ''}` : '';
+  const todo = items.filter(p => !p.added && (f === 'all' || f === p.kind) && p.kind !== 'deadline');
+  $('aidAddAll').hidden = !todo.length; $('aidAddAll').textContent = todo.length > 1 ? `Add ${todo.length} to notes` : 'Add to notes';
   if (stick) box.scrollTop = box.scrollHeight;
 }
 $('forgetKnown').onclick = async () => { await post('/settings', {forget_known: 1}); $('forgetState').textContent = ' Done.'; };
+$('aidAddAll').onclick = () => {
+  const f = aidFilter();
+  const todo = (S.cls.points || []).filter(p => FEED_K.includes(p.kind) && helperOn(p.kind) && !p.added && p.kind !== 'deadline' && (f === 'all' || f === p.kind)).sort((a, b) => a.t - b.t);
+  if (!todo.length) return;
+  for (const p of todo){ appendToNotes(aidLines(p), p.t, p.sl); p.added = true; }
+  post('/point/added', {kid: S.kid, ids: todo.map(p => p.id)});
+  renderAids(); toast(`Added ${todo.length} item${todo.length > 1 ? 's' : ''} to your notes.`);
+};
 $('aidChips').onclick = e => { const b = e.target.closest('button'); if (!b) return; savePrefs({aidFilter: b.dataset.k}); renderAids(); };
 /* drag the line between Summary and Note helper */
 function setLiveSplit(f){ f = Math.max(0.15, Math.min(0.85, f)); $('sumPane').style.setProperty('--lv-top', (f * 100).toFixed(1) + '%'); return f; }

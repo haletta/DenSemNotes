@@ -21,16 +21,37 @@ KINDS = ("point", "question", "deadline", "quote", "source", "term", "word", "ex
 AID_KINDS = ("point", "quote", "source", "term", "word", "example")
 
 
+def subject_term(term, cfg):
+    """Instant term spotting only guesses ("X means…"), so keep it to words that look like terms of the subject:
+    not everyday English, and not one the student dismissed."""
+    t = term.strip()
+    if t.lower() in {w.lower() for w in (cfg.get("known_terms") or [])}:
+        return False
+    words = [w for w in re.findall(r"[A-Za-z][A-Za-z'-]*", t)]
+    if not words or len(words) > 4:
+        return bool(re.search(r"[^\x00-\x7f]", t))  # Hebrew, Greek…: keep
+    if any(w[0].isupper() for w in words[1:]) or (len(words) == 1 and words[0][0].isupper() and words[0].lower() not in STOP):
+        return True  # names of things
+    try:
+        import dictionary
+        r = [dictionary.rarity(w) for w in words if w.lower() not in STOP]
+    except Exception:
+        return True
+    if not r or any(x is None for x in r):
+        return True
+    return min(r) < 40000  # at least one word that isn't everyday English
+
+
 def helper_on(cfg, kind):
     """Each note helper can be switched off in Preferences; an off helper isn't looked for and costs no AI."""
     return (cfg.get("helpers") or {}).get(kind, True) is not False
 
 
 AID_LINES = {
-    "point": '- "point": a main idea or claim the lecturer stressed, one short sentence, in the lecturer\'s words where possible.',
+    "point": '- "point": something the student should have in their notes: a fact, claim, definition in plain words, step of an argument, cause and effect, contrast, list, date or conclusion the lecturer taught. "text" = the note itself, key phrase first, e.g. "Justification: a legal verdict, not a process" or "3 causes of the exile: idolatry, injustice, broken covenant". "meaning" = one more short line if the lecturer added an explanation or example worth keeping, else empty.',
     "quote": '- "quote": a striking sentence the lecturer said or read out, word for word; "who" = the person quoted (empty if it\'s the lecturer\'s own words).',
     "source": '- "source": an idea the lecturer credited to a book, article or author; "who" = the author, "work" = the title if it was said; "text" = the idea in one sentence.',
-    "term": '- "term": a key term of the subject that the lecturer used or explained; "text" = the term, "meaning" = its meaning as the lecturer explained it (empty if not explained), "dict" = a short dictionary definition.',
+    "term": '- "term": a technical or subject-specific term of this course (the name of a concept, theory, doctrine, school, period, method, law, or a Greek/Hebrew/Latin word) that the lecturer used or explained. NOT an everyday English word (e.g. "important", "people", "change", "story", "history"), even if it was said often, unless the lecturer gave it a special meaning here. At most 3 per stretch, only the ones worth learning. "text" = the term, "meaning" = its meaning as the lecturer explained it (empty if not explained), "dict" = a short dictionary definition.',
     "word": '- "word": a difficult English word the lecturer used that an average English speaker may not know (not a subject term already listed, not a name); "text" = the word in its dictionary form, "pos" = part of speech, "dict" = a plain dictionary definition in under 20 words.',
     "example": '- "example": a story, case or illustration the lecturer used, in one sentence.',
 }
@@ -266,7 +287,9 @@ AID_PROMPT = """You help a student take notes during a live lecture{course}. The
 WHAT THE LECTURER JUST SAID [{start}–{end}]:
 {text}
 
-List only what a student should write down from this stretch, 0 to 5 items, of these kinds only:
+You are the student's live note helper. Pick out what a good student would write in their notes from this stretch: the content that matters for understanding the subject and for the exam. Write each item as a ready note, not a transcript line: short, specific, and clear on its own later (who, what, which one), keeping the lecturer's key words, names, numbers and references.
+How many: 2-7 items when the lecturer is teaching content (more when it's dense), 0 when it's small talk, logistics or repetition. Never vague items like "The lecturer discussed X".
+Kinds, only these:
 {kinds}
 Skip small talk, class logistics and questions. Never invent names or titles that weren't said.{have}{questions}{define}
 Reply with JSON only: {{"items":[{{"kind":"{kind_list}","text":"...","who":"","work":"","meaning":"","pos":"","dict":"","at":"mm:ss"}}],"questions":[{{"id":"","brief":"","context":""}}],"defs":[{{"word":"","pos":"","dict":""}}]}}"""
@@ -400,6 +423,8 @@ class Summarizer:
                 for kind, title, detail in aids_in(seg["text"]):
                     if not helper_on(cfg, kind):
                         continue
+                    if kind == "term" and not subject_term(title, cfg):
+                        continue
                     recent = [p for p in s["points"][-25:] + new if p["kind"] in AID_KINDS]
                     if any(similarity(p["title"], title) > 0.6 or (kind == "term" and p["kind"] in ("term", "word") and
                                                                    p["title"].lower() == title.lower()) for p in recent):
@@ -508,7 +533,8 @@ class Summarizer:
                         continue
                     upd.append(dict(p))
             pool = [p for p in s["points"] if p["kind"] in AID_KINDS and start - 60 <= p["t"] <= end + 5]
-            for it in items[:6]:
+            known_terms = {w.lower() for w in (self.hub.cfg.get("known_terms") or [])}
+            for it in items[:9]:
                 if not isinstance(it, dict):
                     continue
                 kind = str(it.get("kind") or "").lower()
@@ -517,6 +543,8 @@ class Summarizer:
                     continue
                 who, work, meaning = (str(it.get(k) or "").strip() for k in ("who", "work", "meaning"))
                 sense, pos = str(it.get("dict") or "").strip()[:240], str(it.get("pos") or "").strip()[:20]
+                if kind == "term" and text.lower() in known_terms:
+                    continue
                 if kind == "word":
                     text = text.lower()
                     if len(text.split()) > 3 or text in (self.hub.cfg.get("known_words") or []):
@@ -532,6 +560,8 @@ class Summarizer:
                         continue
                 if kind in ("term", "word"):
                     title, detail = text[:60], (meaning if kind == "term" else sense)
+                elif kind == "point":
+                    title, detail = text, meaning
                 else:
                     title, detail = text, " · ".join(v for v in (who, work) if v)
                 t = to_sec(it.get("at")) if it.get("at") else 0
@@ -541,6 +571,8 @@ class Summarizer:
                 sl = next((x.get("sl") for x in segs if abs(x["t"] - t) < 12 and x.get("sl")), None)
                 same = None
                 for p in pool + add:
+                    if (p["kind"] in ("term", "word")) != (kind in ("term", "word")):
+                        continue  # a term and a note that mentions it are different things
                     if (similarity(p["title"], title) > 0.45 or (kind == "term" and p["kind"] == "term" and
                                                                 p["title"].lower() == title.lower())
                             or (kind in ("quote", "source") and p["kind"] in ("quote", "source") and abs(p["t"] - t) < 40

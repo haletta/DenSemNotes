@@ -506,6 +506,13 @@ class App:
 
     def delete_point(self, data):
         kid, pid = data.get("kid") or self.hub.kid, data.get("id")
+        if data.get("known_term"):  # a term that isn't one: don't suggest it again
+            w = str(data["known_term"]).strip().lower()[:60]
+            kt = self.hub.cfg.setdefault("known_terms", [])
+            if w and w not in kt:
+                kt.append(w)
+                del kt[:-2000]
+                save_json(CFG_PATH, self.hub.cfg)
         if data.get("known"):  # a difficult word the student already knows: don't flag it again in any class
             w = str(data["known"]).strip().lower()[:60]
             kw = self.hub.cfg.setdefault("known_words", [])
@@ -516,6 +523,21 @@ class App:
         self.hub.update_class(kid, lambda s: s.__setitem__("points", [p for p in s["points"] if p["id"] != pid]))
         if kid == self.hub.kid:
             self.hub.emit("points", {"add": [], "update": [], "remove": [pid], "topic": self.hub.s["topic"]})
+        return {"ok": True}
+
+    def mark_added(self, data):
+        """Remember which note helper items went into my notes, so they stay ticked."""
+        kid, ids = data.get("kid") or self.hub.kid, set(data.get("ids") or [])
+        upd = []
+
+        def fn(s):
+            for p in s["points"]:
+                if p["id"] in ids and not p.get("added"):
+                    p["added"] = True
+                    upd.append(dict(p))
+        self.hub.update_class(kid, fn)
+        if kid == self.hub.kid and upd:
+            self.hub.emit("points", {"add": [], "update": upd, "remove": [], "topic": self.hub.s["topic"]})
         return {"ok": True}
 
     def set_view(self, data):
@@ -1145,6 +1167,7 @@ def make_handler(app):
                 "/test-ai": app.test_ai,
                 "/notes": lambda: app.save_lines(data),
                 "/point/delete": lambda: app.delete_point(data),
+                "/point/added": lambda: app.mark_added(data),
                 "/view": lambda: app.set_view(data),
                 "/doc/delete": lambda: app.delete_doc(data),
                 "/import/new": lambda: app.importer.create(data),
