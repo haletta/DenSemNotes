@@ -16,7 +16,7 @@ UPDATE=0
 [ "${1:-}" = "--update" ] && UPDATE=1   # run by the app's own updater: no Finder window, no model download
 
 echo "DenSemNotes installer"
-echo "This takes about 5 minutes and downloads roughly 1 GB the first time."
+echo "This takes about 5 minutes and downloads 1 to 2.5 GB the first time."
 
 # Bring data from earlier versions (the app turns the last lecture into a class on first start)
 for OLD in "$SUPPORT/DenSem Class" "$SUPPORT/DenSem Lecture" "$SUPPORT/Lecture Catch-Up"; do
@@ -53,6 +53,18 @@ fi
 
 say_step "Installing speech recognition, slide viewer and window libraries"
 "$UV" pip install --python "$APP_DIR/.venv/bin/python" -r "$APP_DIR/requirements.txt"
+
+# Apple Silicon: Whisper on the GPU (MLX). Optional: if it can't be installed (older macOS, no internet),
+# the app keeps using the CPU engine. Installed without its "torch" dependency, which is only for converting models.
+if [ "$(uname -m)" = "arm64" ]; then
+  say_step "Installing the Apple GPU speech engine"
+  if "$UV" pip install --python "$APP_DIR/.venv/bin/python" "mlx>=0.11" numba scipy tiktoken more-itertools tqdm huggingface_hub \
+     && "$UV" pip install --python "$APP_DIR/.venv/bin/python" --no-deps "mlx-whisper>=0.4.2"; then
+    echo "Apple GPU speech engine installed."
+  else
+    echo "Couldn't install the Apple GPU speech engine; DenSemNotes will use the CPU engine instead."
+  fi
+fi
 
 if [ "$UPDATE" = "0" ]; then
   say_step "Downloading the speech model (one time)"

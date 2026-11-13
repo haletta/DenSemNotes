@@ -9,14 +9,12 @@ import traceback
 import numpy as np
 
 from ai import Offline, ask_ai, ai_ready, parse_json
-from store import HEBREW_TERMS, MODELS, course_taught
+from speech import BLOCK, SR, Transcriber, quiet_cut  # noqa: F401  (Transcriber is imported from here)
+from store import HEBREW_TERMS, course_taught
 import dictionary
 from words import (DEADLINE, STOP, aids_in, chunk_text, content_words, fmt, key_sentences, overlap, questions_in,
                    sentences, similarity, to_sec, word_count)
 
-SR = 16000
-BLOCK = 1600  # 0.1 s
-BOILER = re.compile(r"^(thank you\.?|thanks for watching.*|subtitles by.*|you\.?|\.+)$", re.I)
 KINDS = ("point", "question", "deadline", "quote", "source", "term", "word", "example")
 AID_KINDS = ("point", "quote", "source", "term", "word", "example")
 
@@ -66,74 +64,6 @@ def slide_at(s, t):
         else:
             break
     return found
-
-
-# ---------------------------------------------------------------- speech to text
-class Transcriber:
-    def __init__(self, hub):
-        self.hub = hub
-        self.model = None
-        self.name = None
-        self.load_lock = threading.Lock()
-
-    def wanted(self):
-        name = self.hub.cfg["whisper"]
-        if self.hub.cfg["language"] != "en" and name.endswith(".en"):
-            name = name[:-3]
-        return name
-
-    def load(self):
-        with self.load_lock:
-            name = self.wanted()
-            if self.model is not None and self.name == name:
-                return True
-            self.hub.model = {"state": "loading", "name": name}
-            self.hub.emit("model", self.hub.model)
-            try:
-                from faster_whisper import WhisperModel
-
-                m = WhisperModel(name, device="cpu", compute_type="int8", download_root=MODELS,
-                                 cpu_threads=min(8, os.cpu_count() or 4))
-            except Exception as e:
-                self.hub.model = {"state": "error", "name": name, "error": str(e)[:300]}
-                self.hub.emit("model", self.hub.model)
-                return False
-            self.model, self.name = m, name
-            self.hub.model = {"state": "ready", "name": name}
-            self.hub.emit("model", self.hub.model)
-            return True
-
-    def transcribe(self, audio, prompt):
-        lang = self.hub.cfg["language"]
-        segments, _ = self.model.transcribe(
-            audio,
-            language=None if lang == "auto" else lang,
-            beam_size=3,
-            vad_filter=True,
-            vad_parameters=dict(min_silence_duration_ms=400),
-            condition_on_previous_text=False,
-            initial_prompt=prompt or None,
-        )
-        out = []
-        for s in segments:
-            text = s.text.strip()
-            if not text or BOILER.match(text):
-                continue
-            if s.no_speech_prob > 0.6 and s.avg_logprob < -0.8:
-                continue
-            out.append((s.start, text))
-        return out
-
-
-def quiet_cut(buf, length, window=3 * SR):
-    """Cut point inside the last `window` samples of buf[:length], at the quietest 0.1 s."""
-    start = max(length // 2, length - window)
-    region = buf[start:length]
-    frames = len(region) // BLOCK
-    if frames < 2:
-        return length
-    rms = np.sqrt(np.mean(region[: frames * BLOCK].reshape(frames, BLOCK) ** 2, axis=1))
-    return start + int(np.argmin(rms)) * BLOCK + BLOCK // 2
 
 
 class Recorder:

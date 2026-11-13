@@ -526,21 +526,14 @@ class Importer:
         tx = self.app.tx
         if not tx.load():
             raise RuntimeError("The speech model couldn't load: " + str(self.hub.model.get("error", "")))
-        lang = self.hub.cfg["language"]
-        prompt = self.hub.whisper_prompt(kid)
-        segments, info = tx.model.transcribe(path, language=None if lang == "auto" else lang, beam_size=3,
-                                             vad_filter=True, condition_on_previous_text=True,
-                                             initial_prompt=prompt or None)
-        total = float(getattr(info, "duration", 0) or 0)
-        out, last = [], 0.0
-        for sg in segments:
-            text = sg.text.strip()
-            if not text:
-                continue
-            out.append({"t": round(sg.start, 1), "text": text})
-            if time.time() - last > 1.5:
-                last = time.time()
-                pct = int(sg.end / total * 100) if total else 0
+        last = [0.0]
+
+        def progress(done, total):
+            if time.time() - last[0] > 1.5:
+                last[0] = time.time()
+                pct = int(done / total * 100) if total else 0
                 self._step(kid, "read", "working", f"transcribing the recording · {pct}%"
                            + (f" of {fmt(total)}" if total else ""))
+
+        out = tx.transcribe_file(path, self.hub.whisper_prompt(kid), progress)
         return _merge_short(out)

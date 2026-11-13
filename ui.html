@@ -1089,8 +1089,12 @@ kbd{font:500 11px var(--font-sans);border-radius:4px;padding:0 4px;background:va
       <div class="field"><label for="device">Microphone</label><div class="ctl"><select id="device"></select></div></div>
       <div class="field"><label for="whisper">Speech model</label><div class="ctl"><select id="whisper">
         <option value="base.en">Fast: base (any Mac)</option><option value="small.en">Balanced: small (M1 or newer)</option>
-        <option value="medium.en">Most accurate: medium (M2 Pro/M3 or newer)</option><option value="distil-large-v3">Distil large v3 (accurate, English)</option>
-      </select><small>Runs on your Mac. Bigger models are more accurate but slower; each downloads once.</small></div></div>
+        <option value="medium.en">More accurate: medium (M2 Pro/M3 or newer)</option><option value="distil-large-v3">Distil large v3 (accurate, English)</option>
+        <option value="large-v3-turbo">Most accurate: large v3 turbo (Apple Silicon, 16 GB memory)</option>
+      </select><small>Runs on your Mac. Bigger models are more accurate but slower; each downloads once (large v3 turbo is about 1.6 GB).</small></div></div>
+      <div class="field"><label for="stt_engine">Speech engine</label><div class="ctl"><select id="stt_engine">
+        <option value="auto">Automatic: Apple GPU when available</option><option value="cpu">CPU only (the earlier engine)</option>
+      </select><small id="sttNote">On an M1 or newer Mac the speech model runs on the graphics chip, which is faster. Choose CPU only if transcription misbehaves.</small></div></div>
       <div class="field"><label for="language">Lecture language</label><div class="ctl"><select id="language">
         <option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option>
         <option value="ar">Arabic</option><option value="zh">Chinese</option><option value="hi">Hindi</option><option value="pt">Portuguese</option><option value="auto">Detect automatically</option>
@@ -3405,11 +3409,12 @@ prefs.addEventListener('click', e => {
 });
 async function openPrefs(which){
   const c = S.cfg; removeKeys = []; $('testState').textContent = ''; $('pullState').textContent = '';
-  ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => { if (c[k] != null) $(k).value = String(c[k]); });
+  ['whisper', 'stt_engine', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => { if (c[k] != null) $(k).value = String(c[k]); });
   prefs.querySelectorAll('#pHelpers [data-h]').forEach(x => x.checked = helperOn(x.dataset.h));
   if (c.whisper && ![...$('whisper').options].some(o => o.value === c.whisper)) $('whisper').add(new Option(c.whisper, c.whisper, true, true));
   KEYS.forEach(k => { const has = c.has_key && c.has_key[k]; const inp = $('key_' + k); inp.value = '';
     inp.placeholder = has ? 'Key saved (type to replace)' : PH[k]; prefs.querySelector(`[data-remove="${k}"]`).hidden = !has; });
+  { const m = S.model || {}; $('sttNote').textContent = m.note || (m.state === 'ready' ? `Now using ${m.name} on the ${m.engine === 'mlx' ? 'Apple GPU' : 'CPU'}. ` : '') + 'On an M1 or newer Mac the speech model runs on the graphics chip, which is faster. Choose CPU only if transcription misbehaves.'; }
   syncPrefControls(); prefTab(which || 'general');
   removeGh = false; $('ghToken').value = ''; $('pAutoUpd').checked = c.auto_update_check !== false;
   const hasGh = c.has_key && c.has_key.github; $('ghToken').placeholder = hasGh ? 'Token saved (type to replace)' : 'GitHub token with read access'; $('ghTokenRm').hidden = !hasGh;
@@ -3427,7 +3432,7 @@ $('setCancel').onclick = () => prefs.close();
 function settingsBody(){
   const keys = {}; KEYS.forEach(k => keys[k] = $('key_' + k).value.trim());
   const b = {keys, remove_keys: removeKeys, device: $('device').value};
-  ['whisper', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => b[k] = $(k).value);
+  ['whisper', 'stt_engine', 'language', 'claude_model', 'provider', 'ollama_model', 'gemini_model', 'groq_model', 'period', 'aid_every', 'hard_words'].forEach(k => b[k] = $(k).value);
   b.auto_update_check = $('pAutoUpd').checked;
   b.helpers = {}; prefs.querySelectorAll('#pHelpers [data-h]').forEach(x => b.helpers[x.dataset.h] = x.checked);
   b.lesson_ai = $('lesson_ai').value; b.lesson_model = $('lesson_model').value;

@@ -14,7 +14,7 @@ After that the app keeps itself up to date (see **Updates**).
 1. Unzip the download.
 2. Open **Terminal** (⌘Space, type "Terminal").
 3. Type `bash ` (with a space), drag **Install.command** from the unzipped folder into the Terminal window, and press Return.
-4. Wait about 5 minutes the first time (it downloads Python, the speech libraries and the speech model, about 1 GB).
+4. Wait 5 to 10 minutes the first time (it downloads Python, the speech libraries and the speech model, 1 to 2.5 GB depending on your Mac).
 
 **DenSemNotes** appears in the Applications folder inside your home folder. Updating keeps all your courses, classes and settings.
 
@@ -48,6 +48,15 @@ The editor shows formatting as you type; the Markdown symbols appear only on the
 
 - **Aa** in the title bar changes the font (New York serif, SF Pro, SF Mono), size, line height, line width, theme (Auto, Light, Dark) and accent colour, live.
 - **Preferences** (⌘,) has four tabs: **General** (microphone, speech model, language, live summary interval), **Appearance** (theme, accent, translucent sidebar), **Editor** (type, spelling, margin, formatting tools, lesson mix), **Shortcuts** and **AI**.
+
+## Speech recognition
+
+The lecture is transcribed on your Mac by a Whisper speech model; nothing is sent anywhere.
+
+- **On an M1 or newer Mac** the model runs on the graphics chip (Apple's MLX), which is faster than the processor. A Mac with 16 GB of memory or more uses **large v3 turbo**, the most accurate model; an 8 GB Mac keeps the **small** model, now on the graphics chip. The first start after this update downloads the new model once (about 1.6 GB for large v3 turbo), so do it on Wi-Fi before class, not in it.
+- **On an Intel Mac**, or if the graphics-chip engine couldn't be installed, the model runs on the processor as before.
+- **Preferences › General › Speech model** changes the model. **Speech engine** just below it shows which engine is in use; choose **CPU only** to go back to the earlier engine if transcription misbehaves.
+- With a local Ollama model also running, an 8 GB Mac can run short of memory: pick a smaller speech model, or use Gemini or Groq for the AI during class.
 
 ## Zoom
 
@@ -183,6 +192,7 @@ Updates come from the repository named in `update.json` (haletta/DenSemNotes). U
 
 - **Quitting**: closing the window or ⌘Q quits at once, even while recording. Your notes and everything heard so far are saved; the lecture's final summary is made in the background the next time you open the app. Programs DenSemNotes started (Claude Code, slide conversions, and Keynote or Pages if it opened them) are closed too, and a local Ollama model is unloaded. An update that's already installing is left to finish by itself.
 
+- **The transcript is slow, empty or wrong after an update**: Preferences › General › Speech engine › **CPU only** puts the earlier engine back. The reason the graphics-chip engine wasn't used, if any, is written under that setting.
 - **Mic bars stay grey**: System Settings › Privacy & Security › Microphone › turn on DenSemNotes, then reopen the app.
 - **Slides look different from PowerPoint**: Keynote gives an exact copy. If macOS hasn't allowed DenSemNotes to use Keynote, the app draws PowerPoint slides itself (pictures, shapes, tables, charts and SmartArt are kept, but fancy effects and some fonts may differ). To get exact slides: System Settings › Privacy & Security › Automation › DenSemNotes › turn on Keynote, then in the Slides tab choose **⋯ › Convert again**.
 - **Slides won't convert at all**: export them as PDF and upload the PDF.

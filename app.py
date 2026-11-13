@@ -63,7 +63,8 @@ DEFAULTS = dict(
     groq_model="llama-3.3-70b-versatile",
     api_key="",  # Claude
     claude_model="claude-haiku-5-5",
-    whisper="small.en" if ARM else "base.en",
+    whisper="small.en" if ARM else "base.en",  # a 16 GB Apple Silicon Mac moves to large-v3-turbo (speech.upgrade_default)
+    stt_engine="auto",  # auto = Apple GPU (MLX) when it's there, else CPU | cpu = always the CPU engine
     language="en",
     period=0,  # minutes per live summary; 0 = only when the class is paused or finished
     aid_every=2,  # minutes between AI passes of the live note helper (0 = instant detection only)
@@ -112,6 +113,8 @@ class Hub:
             pass
         if not self.cfg.get("summary_on_demand"):  # summaries now come only when paused or finished, unless chosen
             self.cfg.update(period=0, summary_on_demand=True)
+        import speech
+        speech.upgrade_default(self.cfg)
         self.lib = Library(self.cfg)
         self.cfg["ui"] = {**UI_DEFAULTS, **(self.cfg.get("ui") or {})}
         save_json(CFG_PATH, self.cfg)
@@ -775,10 +778,12 @@ class App:
     # -- settings & misc
     def settings(self, data):
         hub = self.hub
-        old_model = self.tx.wanted()
+        old_model = self.tx.key()
         for k in ("claude_model", "whisper", "language", "provider", "ollama_model", "gemini_model", "groq_model"):
             if k in data and str(data[k]).strip():
                 hub.cfg[k] = str(data[k]).strip()
+        if data.get("stt_engine") in ("auto", "cpu"):
+            hub.cfg["stt_engine"] = data["stt_engine"]
         if str(data.get("period", "")).isdigit():
             hub.cfg["period"] = max(0, min(60, int(data["period"])))
         if str(data.get("aid_every", "")).isdigit():
@@ -811,7 +816,7 @@ class App:
             hub.cfg["device"] = int(d) if str(d).isdigit() else None
         self.summ.err = ""
         save_json(CFG_PATH, hub.cfg)
-        if self.tx.wanted() != old_model:
+        if self.tx.key() != old_model:
             threading.Thread(target=self.tx.load, daemon=True).start()
         hub.emit("cfg", hub.public_cfg())
         return {"ok": True}
